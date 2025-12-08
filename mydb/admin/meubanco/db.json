@@ -1,0 +1,63 @@
+{
+  "dbname": "meubanco",
+  "collections": [
+    {
+      "collname": "professores",
+      "file": "professores.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "nome": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-08T02:36:27.127Z"
+    },
+    {
+      "collname": "disciplinas",
+      "file": "disciplinas.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "nome": {
+          "type": "string",
+          "required": true
+        },
+        "professorId": {
+          "type": "number",
+          "required": true
+        }
+      },
+      "nextId": 4,
+      "createdAt": "2025-12-08T02:36:27.296Z"
+    },
+    {
+      "collname": "pedidos",
+      "file": "pedidos.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "cliente": {
+          "type": "string"
+        },
+        "itens": {
+          "type": "array"
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-08T14:05:51.791Z"
+    }
+  ],
+  "createdAt": 1765036544105
+}

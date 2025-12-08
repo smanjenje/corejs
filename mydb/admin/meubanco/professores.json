@@ -1,0 +1,12 @@
+[
+  {
+    "_id": 1,
+    "nome": "Severino1",
+    "createdAt": "2025-12-08T02:36:27.169Z"
+  },
+  {
+    "_id": 2,
+    "nome": "Severino2",
+    "createdAt": "2025-12-08T02:36:27.254Z"
+  }
+]

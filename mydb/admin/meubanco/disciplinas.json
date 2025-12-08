@@ -1,0 +1,20 @@
+[
+  {
+    "_id": 1,
+    "nome": "Matemática",
+    "professorId": 1,
+    "createdAt": "2025-12-08T02:36:27.397Z"
+  },
+  {
+    "_id": 2,
+    "nome": "Física",
+    "professorId": 1,
+    "createdAt": "2025-12-08T02:36:27.425Z"
+  },
+  {
+    "_id": 3,
+    "nome": "Química",
+    "professorId": 2,
+    "createdAt": "2025-12-08T02:36:27.450Z"
+  }
+]
