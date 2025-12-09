@@ -4,7 +4,7 @@
 **Uma mini biblioteca modular para construção de aplicações JavaScript com plugins, hooks e execução inteligente (síncrona/assíncrona).**
 
 > Criado por **Severino Victorino**  
-> Versão com `safeParseObj` — parsing seguro de strings para objetos sem usar `eval`.
+> Versão 0.1.
 
 ---
 
