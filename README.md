@@ -1,6 +1,4 @@
-Claro! Aqui está um **README.md** profissional e bem estruturado para a sua mini biblioteca **CoreJS**, destacando seus recursos principais, como plugins, hooks, execução inteligente e parsing seguro:
 
----
 
 # 🧠 CoreJS  
 **Uma mini biblioteca modular para construção de aplicações JavaScript com plugins, hooks e execução inteligente (síncrona/assíncrona).**
@@ -159,6 +157,4 @@ MIT © Severino Victorino
 
 > 💡 **Dica**: Combine com plugins de logging, validação, cache ou I/O para criar micro-frameworks poderosos!
 
---- 
 
-Se desejar, posso também gerar um exemplo de plugin real (ex: plugin de HTTP, de validação, etc.) ou ajustar o README para publicação no npm.
