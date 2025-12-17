@@ -183,7 +183,7 @@ module.exports = ({ app, options } = {}) => {
       }
     },
 
-    getFulDB: async ({ user, dbname, ttl } = {}) => {
+    getFullDB: async ({ user, dbname, ttl } = {}) => {
       try {
         ensureUserAndDB(user, dbname);
 

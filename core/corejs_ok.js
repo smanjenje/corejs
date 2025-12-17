@@ -19,7 +19,7 @@
 
 const coreJS = (options = {}) => {
   /** @type {CoreApp} */
-  const app = { options };
+  const app = { options, _hooks: {} };
 
   app.pluginsNames = {};
 
@@ -74,64 +74,74 @@ const coreJS = (options = {}) => {
   };
 
   // ---------------------------------------------------------
-  // SISTEMA DE HOOKS (Mapa de Métodos)
+  // HOOKS
   // ---------------------------------------------------------
 
-  /** Mapa de execução: { "fnName": { before: [], after: [] } } */
-  // coreJS.js -> Seção de Hooks
-
-  app._hookMap = {}; // O mapa dinâmico
-
-  app.addHooks = (hooks = []) => {
-    if (!Array.isArray(hooks)) return app;
-
-    hooks.forEach(({ tipo, fnName, callback }) => {
-      // 1. Inicializa o mapa para a função alvo
-      if (!app._hookMap[fnName]) {
-        app._hookMap[fnName] = { before: [], after: [] };
-      }
-
-      const fase = tipo === "before" ? "before" : "after";
-      let executor;
-
-      // Caso A: O plugin passou uma função diretamente
-      if (typeof callback === "function") {
-        executor = callback;
-      }
-      // Caso B: O plugin passou um objeto { fn: "nomeDaFuncao" }
-      else if (typeof callback === "object" && callback.fn) {
-        // Criamos o executor "Preguiçoso" (Lazy)
-        executor = async (ctx) => {
-          // A função é buscada no app apenas NESTE momento (na execução)
-          const fnDoPlugin = app[callback.fn];
-
-          if (typeof fnDoPlugin !== "function") {
-            // Se a função não existe nem na hora de rodar, apenas ignora
-            return;
-          }
-
-          const payload = {
-            ...ctx.args,
-            ...(callback.args || {}),
-            result: ctx.result,
-            fnName: ctx.fnName,
-          };
-          return await app.smartCall(fnDoPlugin, payload);
-        };
-
-        // Nomeia para o seu debug ficar bonito como no log que você postou
-        Object.defineProperty(executor, "name", {
-          value: `hook_${fase}_${callback.fn}`,
-        });
-      }
-
-      if (executor) {
-        app._hookMap[fnName][fase].push(executor);
-      }
-    });
-
+  app.onHook = (hookName, fn) => {
+    if (!app._hooks[hookName]) app._hooks[hookName] = [];
+    app._hooks[hookName].push(fn);
     return app;
   };
+
+  app.addHooks = (hooks = []) => {
+    if (!Array.isArray(hooks)) {
+      throw new Error("addHooks espera um array de hooks");
+    }
+
+    hooks.forEach(({ tipo, fnName, callback }) => {
+      if (!["before", "after"].includes(tipo)) {
+        throw new Error("Tipo de hook inválido. Use 'before' ou 'after'.");
+      }
+      if (typeof fnName !== "string") {
+        throw new Error("fnName deve ser uma string.");
+      }
+
+      const hookName = tipo === "before" ? "beforeRun" : "afterRun";
+
+      app.onHook(hookName, async (ctx) => {
+        if (ctx.fnName !== fnName) return;
+
+        try {
+          // Callback como função
+          if (typeof callback === "function") {
+            await callback(ctx);
+          }
+          // Callback como objeto { fn, args }
+          else if (typeof callback === "object" && callback.fn) {
+            const fnToCall = app[callback.fn];
+
+            if (typeof fnToCall === "function") {
+              const args = callback.args || ctx.args;
+              await app.smartCall(fnToCall, args);
+            } else {
+              console.warn(
+                `[addHooks] Função '${callback.fn}' não encontrada no app`
+              );
+            }
+          } else {
+            console.warn(`[addHooks] Callback inválido para ${fnName}`);
+          }
+        } catch (err) {
+          console.error(
+            `[addHooks] Erro no hook ${hookName} para ${fnName}: ${err.message}`
+          );
+        }
+      });
+    });
+
+    return app; // Para encadeamento
+  };
+
+  /** Executa hooks */
+  const runHook = async (hookName, ctx) => {
+    const hooks = app._hooks[hookName] || [];
+    for (const fn of hooks) {
+      await app.smartCall(fn, ctx);
+    }
+  };
+  // ---------------------------------------------------------
+  // EXECUÇÃO INTELIGENTE (ASSÍNCRONA)
+  // ---------------------------------------------------------
 
   app.runFunc = async (fnName, args = {}) => {
     const fn = app[fnName];
@@ -139,18 +149,10 @@ const coreJS = (options = {}) => {
       throw new Error(`Função '${fnName}' não encontrada no CoreJS.`);
     }
 
-    // Contexto base da execução
-    const ctx = { fnName, args, app };
-    const hooks = app._hookMap[fnName];
+    const ctx = { fnName, args, action: fnName, app };
 
-    // 1. Executa Métodos "Before" (Pré-processamento/Validação)
-    if (hooks?.before?.length) {
-      for (const hookFn of hooks.before) {
-        await hookFn(ctx);
-      }
-    }
+    await runHook("beforeRun", { ...ctx });
 
-    // 2. Executa a Função Principal do Banco/Sistema
     let result;
     try {
       result = await app.smartCall(fn, args);
@@ -158,14 +160,7 @@ const coreJS = (options = {}) => {
       throw new Error(`Erro ao executar '${fnName}': ${err.message}`);
     }
 
-    // 3. Executa Métodos "After" (Auditoria/Campos Virtuais/Transformação)
-    if (hooks?.after?.length) {
-      const afterCtx = { ...ctx, result };
-      for (const hookFn of hooks.after) {
-        // O resultado pode ser modificado por referência se for um objeto
-        await hookFn(afterCtx);
-      }
-    }
+    await runHook("afterRun", { ...ctx, result });
 
     return result;
   };

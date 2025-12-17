@@ -102,6 +102,84 @@ module.exports = ({ app, options = {} } = {}) => {
     return true;
   }
 
+  async function writeFile(file, data) {
+    if (!file || typeof file !== "string")
+      throw new Error("writeFile: file deve ser um caminho string.");
+
+    // Hook opcional antes da escrita (útil para auditoria ou validação)
+    if (typeof app.beforeWriteFile === "function") {
+      try {
+        await app.beforeWriteFile({ file, data });
+      } catch (err) {
+        // Se o hook lançar erro, interrompe a escrita por segurança
+        throw new Error(
+          "Escrita cancelada pelo hook beforeWriteFile: " + err.message
+        );
+      }
+    }
+
+    // 1) Escrita Atômica: Cria um arquivo temporário
+    const tmp = file + ".tmp";
+
+    try {
+      // Garante que o diretório pai existe
+      await fs.ensureFile(tmp);
+
+      // 2) Escreve o Buffer/String no arquivo temporário
+      // Diferente do writeJSON, aqui usamos fs.writeFile (suporta Buffer)
+      await fs.writeFile(tmp, data);
+
+      // 3) Move o temporário para o destino final (substituição atômica)
+      await fs.move(tmp, file, { overwrite: true });
+
+      // Invalida o cache JSON se este arquivo existir no cache
+      // (Prevenção: se você sobrescrever um JSON usando writeFile, o cache deve limpar)
+      if (jsonCache.has(file)) {
+        jsonCache.delete(file);
+      }
+    } catch (err) {
+      // Limpeza do arquivo temporário em caso de falha
+      if (await fs.pathExists(tmp)) await fs.remove(tmp);
+      throw err;
+    }
+
+    // Hook opcional após a escrita
+    if (typeof app.afterWriteFile === "function") {
+      try {
+        await app.afterWriteFile({ file, data });
+      } catch {}
+    }
+
+    return true;
+  }
+
+  /**
+   * Lê um arquivo do disco como Buffer (binário).
+   * @param {string} file - Caminho completo do arquivo.
+   * @returns {Buffer} Conteúdo bruto do arquivo.
+   */
+  async function readFile(file) {
+    if (!file || typeof file !== "string")
+      throw new Error("readFile: file deve ser um caminho string.");
+
+    try {
+      // 1. Verifica se o arquivo existe antes de tentar ler
+      const exists = await fs.pathExists(file);
+      if (!exists) {
+        throw new Error(`readFile: Arquivo não encontrado em ${file}`);
+      }
+
+      // 2. Lê o arquivo como Buffer
+      // Não passamos 'utf8' para garantir que venha como binário (Buffer)
+      // essencial para o seu CryptoPlugin e para imagens/PDFs.
+      const data = await fs.readFile(file);
+
+      return data;
+    } catch (err) {
+      throw new Error(`Erro ao ler arquivo: ${err.message}`);
+    }
+  }
+
   async function removeFile(file) {
     if (!file || typeof file !== "string")
       throw new Error("removeFile: file deve ser um caminho string.");
@@ -174,5 +252,7 @@ module.exports = ({ app, options = {} } = {}) => {
     pathExists,
     getFileStats,
     clearCache,
+    writeFile,
+    readFile,
   };
 };

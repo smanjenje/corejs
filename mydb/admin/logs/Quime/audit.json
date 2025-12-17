@@ -1,0 +1,47 @@
+[
+  {
+    "timestamp": "2025-12-17T18:08:44.013Z",
+    "user": "admin",
+    "action": "insertDoc",
+    "collection": "Users",
+    "targetIds": [
+      32,
+      33
+    ],
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-12-17T18:18:42.619Z",
+    "user": "admin",
+    "action": "insertDoc",
+    "collection": "Users",
+    "targetIds": [
+      34,
+      35
+    ],
+    "success": true,
+    "result": {
+      "status": true,
+      "docs": [
+        {
+          "_id": 34,
+          "nome": "Seven",
+          "email": "seven@email.com",
+          "perfil_id": 1,
+          "endereco_id": 1,
+          "createdAt": "2025-12-17T18:18:42.502Z"
+        },
+        {
+          "_id": 35,
+          "nome": "Justo",
+          "email": "justo@email.com",
+          "perfil_id": 2,
+          "endereco_id": 2,
+          "createdAt": "2025-12-17T18:18:42.519Z"
+        }
+      ]
+    },
+    "error": null
+  }
+]

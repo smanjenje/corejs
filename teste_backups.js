@@ -37,9 +37,6 @@ const AggregatePlugin = require("./core/plugins/joins/AggregatePlugin");
 const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
 const PaginationPlugin = require("./core/plugins/filters/PaginationPlugin");
 const BackupPlugin = require("./core/plugins/backupsplugins/BackupPlugin");
-const CryptoPlugin = require("./core/plugins/utils/CryptoPlugin");
-const AuditLogPlugin = require("./core/plugins/utils/AuditLogPlugin");
-const AuthPlugin = require("./core/plugins/utils/AuthPlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -48,7 +45,6 @@ const app = coreJS({ root: "./mydb" });
 
 // Adiciona plugins na ordem correta
 app.addPlugins([
-  AuthPlugin,
   // utilitários
   UtilsPlugin,
   DatePlugin,
@@ -83,9 +79,6 @@ app.addPlugins([
 
   PaginationPlugin,
   BackupPlugin,
-  CryptoPlugin,
-
-  AuditLogPlugin,
 ]);
 
 const logResults = (results) => {
@@ -104,75 +97,38 @@ const logResults = (results) => {
   try {
     const user = "admin";
     const dbname = "Quime";
-    const token =
-      "eyJuYW1lIjoiQWRtaW5zdHJhZG9yIiwidXNlciI6ImFkbWluIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJ1c2VyIiwiZGJuYW1lIjoiUXVpbWUiLCJpYXQiOjE3NjU5OTg2MjgzMjEsImV4cCI6MTc2NjA4NTAyODMyMX0=.667c59efc80a42e67969f87ecd01c07dfb091ac3588a16340f06b3bf6e6fa473";
 
     const commands = [
-      // {
-      //   // Primeiro protegemos
-      //   fnName: "encryptFile",
-      //   args: {
-      // user,
-      // dbname,
-      //     file: "db.json",
-      //     destFile: "db.json.safe",
-      //   },
-      // },
-      // {
-      //   // Depois restauramos para conferir
-      //   fnName: "decryptFile",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     file: "db.json.safe",
-      //     destFile: "db_restaurado.json",
-      //   },
-      // },
-      // Inserir usuários
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "Users",
-      //     doc: [
-      //       {
-      //         nome: "Seven",
-      //         email: "seven@email.com",
-      //         perfil_id: 1,
-      //         endereco_id: 1,
-      //       },
-      //       {
-      //         nome: "Justo",
-      //         email: "justo@email.com",
-      //         perfil_id: 2,
-      //         endereco_id: 2,
-      //       },
-      //     ],
-      //   },
-      // },
-      // {
-      //   fnName: "getAuditLogs",
-      //   args: { user: "admin", dbname: "Quime" },
-      // },
-
-      // {
-      //   fnName: "addUser",
-      //   args: { name: "Adminstrador", username: "admin", password: "1234" },
-      // },
-      // {
-      //   fnName: "login",
-      //   args: { username: "admin", password: "1234", dbname },
-      // },
+      /*     {
+        fnName: "createBackup",
+        args: {
+          user,
+          dbname,
+          tag: "estavel",
+        },
+      },
       {
-        fnName: "validateToken",
-        args: { token },
+        // Opcional: listar para ver se o arquivo de backup foi criado
+        fnName: "listBackups",
+        args: {
+          user,
+          dbname,
+        },
+      }, */
+
+      {
+        fnName: "restoreBackup",
+        args: {
+          user: "admin",
+          dbname: "Quime",
+          // Você deve passar o nome exato da pasta retornado pelo listBackups
+          backupFolderName: "backup_estavel_2025-12-17T09-30-57-692Z",
+        },
       },
     ];
+
     const results = await app.runFuncs(commands);
     logResults(results);
-
-    // console.dir(app._hookMap, { depth: null, colors: true });
   } catch (err) {
     console.error("Erro:", err.message);
   }

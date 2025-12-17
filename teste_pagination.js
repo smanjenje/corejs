@@ -37,9 +37,6 @@ const AggregatePlugin = require("./core/plugins/joins/AggregatePlugin");
 const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
 const PaginationPlugin = require("./core/plugins/filters/PaginationPlugin");
 const BackupPlugin = require("./core/plugins/backupsplugins/BackupPlugin");
-const CryptoPlugin = require("./core/plugins/utils/CryptoPlugin");
-const AuditLogPlugin = require("./core/plugins/utils/AuditLogPlugin");
-const AuthPlugin = require("./core/plugins/utils/AuthPlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -48,7 +45,6 @@ const app = coreJS({ root: "./mydb" });
 
 // Adiciona plugins na ordem correta
 app.addPlugins([
-  AuthPlugin,
   // utilitários
   UtilsPlugin,
   DatePlugin,
@@ -83,9 +79,6 @@ app.addPlugins([
 
   PaginationPlugin,
   BackupPlugin,
-  CryptoPlugin,
-
-  AuditLogPlugin,
 ]);
 
 const logResults = (results) => {
@@ -104,75 +97,49 @@ const logResults = (results) => {
   try {
     const user = "admin";
     const dbname = "Quime";
-    const token =
-      "eyJuYW1lIjoiQWRtaW5zdHJhZG9yIiwidXNlciI6ImFkbWluIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJ1c2VyIiwiZGJuYW1lIjoiUXVpbWUiLCJpYXQiOjE3NjU5OTg2MjgzMjEsImV4cCI6MTc2NjA4NTAyODMyMX0=.667c59efc80a42e67969f87ecd01c07dfb091ac3588a16340f06b3bf6e6fa473";
 
     const commands = [
-      // {
-      //   // Primeiro protegemos
-      //   fnName: "encryptFile",
-      //   args: {
-      // user,
-      // dbname,
-      //     file: "db.json",
-      //     destFile: "db.json.safe",
-      //   },
-      // },
-      // {
-      //   // Depois restauramos para conferir
-      //   fnName: "decryptFile",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     file: "db.json.safe",
-      //     destFile: "db_restaurado.json",
-      //   },
-      // },
-      // Inserir usuários
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "Users",
-      //     doc: [
-      //       {
-      //         nome: "Seven",
-      //         email: "seven@email.com",
-      //         perfil_id: 1,
-      //         endereco_id: 1,
-      //       },
-      //       {
-      //         nome: "Justo",
-      //         email: "justo@email.com",
-      //         perfil_id: 2,
-      //         endereco_id: 2,
-      //       },
-      //     ],
-      //   },
-      // },
-      // {
-      //   fnName: "getAuditLogs",
-      //   args: { user: "admin", dbname: "Quime" },
-      // },
-
-      // {
-      //   fnName: "addUser",
-      //   args: { name: "Adminstrador", username: "admin", password: "1234" },
-      // },
-      // {
-      //   fnName: "login",
-      //   args: { username: "admin", password: "1234", dbname },
-      // },
       {
-        fnName: "validateToken",
-        args: { token },
+        fnName: "paginate",
+        args: {
+          user,
+          dbname,
+          collname: "Cidades",
+          page: 1,
+          limit: 1,
+        },
+      },
+      {
+        fnName: "paginate",
+        args: {
+          user,
+          dbname,
+          docs: [
+            {
+              _id: 1,
+              nome: "João",
+              email: "joao@exemplo.com",
+              perfil_id: 1,
+              endereco_id: 1,
+              createdAt: "2025-12-17T00:33:38.970Z",
+            },
+            {
+              _id: 2,
+              nome: "Maria",
+              email: "maria@exemplo.com",
+              perfil_id: 2,
+              endereco_id: 2,
+              createdAt: "2025-12-17T00:33:38.982Z",
+            },
+          ],
+          page: 1,
+          limit: 1,
+        },
       },
     ];
+
     const results = await app.runFuncs(commands);
     logResults(results);
-
-    // console.dir(app._hookMap, { depth: null, colors: true });
   } catch (err) {
     console.error("Erro:", err.message);
   }

@@ -1,0 +1,19 @@
+{
+  "seven": {
+    "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "role": "user",
+    "createdAt": "2025-12-17T18:41:01.307Z"
+  },
+  "sever": {
+    "name": "Severino",
+    "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "role": "user",
+    "createdAt": "2025-12-17T19:03:15.641Z"
+  },
+  "admin": {
+    "name": "Adminstrador",
+    "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "role": "admin",
+    "createdAt": "2025-12-17T19:06:35.270Z"
+  }
+}
