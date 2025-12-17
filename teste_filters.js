@@ -35,7 +35,6 @@ const UnwindPlugin = require("./core/plugins/joins/UnwindPlugin");
 const SortLimitPlugin = require("./core/plugins/joins/SortLimitPlugin");
 const AggregatePlugin = require("./core/plugins/joins/AggregatePlugin");
 const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
-const PaginationPlugin = require("./core/plugins/filters/PaginationPlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -75,8 +74,6 @@ app.addPlugins([
   AggregatePlugin,
 
   JoinPlugin,
-
-  PaginationPlugin,
 ]);
 
 const logResults = (results) => {
@@ -97,41 +94,111 @@ const logResults = (results) => {
     const dbname = "Quime";
 
     const commands = [
+      // 1. Teste de igualdade simples (Busca o João)
       {
-        fnName: "paginate",
+        fnName: "findOne",
+        args: {
+          user,
+          dbname,
+          collname: "Users",
+          queries: { nome: "João" },
+        },
+      },
+      // 2. Teste de operadores ($gt) e campos aninhados em Enderecos
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Enderecos",
+          queries: { _id: { $gt: 1 } },
+        },
+      },
+      // 3. Teste de lógica booleana e Regex (Cidades que começam com "Rio")
+      {
+        fnName: "findMany",
         args: {
           user,
           dbname,
           collname: "Cidades",
-          page: 1,
-          limit: 1,
+          queries: {
+            cidade_nome: { $regex: "^Rio", $options: "i" },
+          },
         },
       },
+      // 4. Teste de múltiplos critérios (AND implícito)
       {
-        fnName: "paginate",
+        fnName: "findMany",
         args: {
           user,
           dbname,
-          docs: [
-            {
-              _id: 1,
-              nome: "João",
-              email: "joao@exemplo.com",
-              perfil_id: 1,
-              endereco_id: 1,
-              createdAt: "2025-12-17T00:33:38.970Z",
-            },
-            {
-              _id: 2,
-              nome: "Maria",
-              email: "maria@exemplo.com",
-              perfil_id: 2,
-              endereco_id: 2,
-              createdAt: "2025-12-17T00:33:38.982Z",
-            },
-          ],
-          page: 1,
-          limit: 1,
+          collname: "Users",
+          queries: {
+            perfil_id: 2,
+            email: { $regex: "@exemplo.com$" },
+          },
+        },
+      },
+      // 5. Teste de Operador de Conjunto ($in)
+      // Busca usuários que tenham o perfil_id 1 OU 2 (deve trazer João e Maria)
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Users",
+          queries: { perfil_id: { $in: [1, 2] } },
+        },
+      },
+
+      // 6. Teste de Lógica Booleana Explícita ($or)
+      // Busca cidades que sejam "São Paulo" OU cujo ID seja maior que 5
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Cidades",
+          queries: {
+            $or: [{ cidade_nome: "São Paulo" }, { _id: { $gt: 5 } }],
+          },
+        },
+      },
+
+      // 7. Teste de Negação e Diferença ($ne, $nin)
+      // Busca usuários cujo e-mail NÃO seja o do João
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Users",
+          queries: { email: { $ne: "joao@exemplo.com" } },
+        },
+      },
+
+      // 8. Teste de Operador Numérico de Faixa ($gte e $lte combinados)
+      // Simulando um "Between" manual para IDs
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Enderecos",
+          queries: {
+            _id: { $gte: 1, $lte: 10 },
+          },
+        },
+      },
+
+      // 9. Teste de Filtro Vazio (Deve retornar todos os documentos da coleção)
+      {
+        fnName: "findMany",
+        args: {
+          user,
+          dbname,
+          collname: "Cidades",
+          queries: {},
         },
       },
     ];

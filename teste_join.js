@@ -35,7 +35,6 @@ const UnwindPlugin = require("./core/plugins/joins/UnwindPlugin");
 const SortLimitPlugin = require("./core/plugins/joins/SortLimitPlugin");
 const AggregatePlugin = require("./core/plugins/joins/AggregatePlugin");
 const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
-const PaginationPlugin = require("./core/plugins/filters/PaginationPlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -75,8 +74,6 @@ app.addPlugins([
   AggregatePlugin,
 
   JoinPlugin,
-
-  PaginationPlugin,
 ]);
 
 const logResults = (results) => {
@@ -96,42 +93,37 @@ const logResults = (results) => {
     const user = "admin";
     const dbname = "Quime";
 
+   
     const commands = [
       {
-        fnName: "paginate",
+        fnName: "joinCollections",
         args: {
           user,
           dbname,
-          collname: "Cidades",
-          page: 1,
-          limit: 1,
-        },
-      },
-      {
-        fnName: "paginate",
-        args: {
-          user,
-          dbname,
-          docs: [
+          localColl: "Users",
+          joins: [
             {
-              _id: 1,
-              nome: "João",
-              email: "joao@exemplo.com",
-              perfil_id: 1,
-              endereco_id: 1,
-              createdAt: "2025-12-17T00:33:38.970Z",
+              targetColl: "Perfis",
+              localField: "perfil_id",
+              targetField: "_id",
+              joinType: "INNER",
+              as: "perfil",
             },
             {
-              _id: 2,
-              nome: "Maria",
-              email: "maria@exemplo.com",
-              perfil_id: 2,
-              endereco_id: 2,
-              createdAt: "2025-12-17T00:33:38.982Z",
+              targetColl: "Enderecos",
+              localField: "endereco_id",
+              targetField: "_id",
+              joinType: "INNER",
+              as: "endereco",
+            },
+            {
+              targetColl: "Cidades",
+              localField: "endereco.cidade_id",
+              targetField: "_id",
+              joinType: "INNER",
+              as: "endereco.cidade",
             },
           ],
-          page: 1,
-          limit: 1,
         },
       },
     ];
