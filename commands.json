@@ -1,0 +1,30 @@
+[
+  {
+    "user": "admin",
+    "dbname": "Quime",
+    "localColl": "Users",
+
+    "joins": [
+      {
+        "targetColl": "Perfis",
+        "localField": "perfil_id",
+        "targetField": "_id",
+        "as": "perfil"
+      }
+    ]
+  },
+  {
+    "fnName": "joinCollections",
+    "args": {
+      "user": "admin",
+      "dbname": "Quime",
+      "leftCollname": "Users",
+      "rightCollname": "Perfis",
+      "leftKey": "perfil_id",
+      "rightKey": "_id",
+      "joinType": "INNER",
+      "as": "perfil",
+      "join": {}
+    }
+  }
+]

@@ -28,6 +28,10 @@ const OrdenationPlugin = require("./core/plugins/filters/OrdenationPlugin");
 const FieldsProjectPlugin = require("./core/plugins/filters/FieldsProjectPlugin");
 const QueryPlugin = require("./core/plugins/filters/QueryPlugin");
 const LookupPlugin = require("./core/plugins/filters/LookupPlugin");
+const AggregatePlugin = require("./core/plugins/filters/AggregatePlugin");
+const GroupPlugin = require("./core/plugins/filters/GroupPlugin");
+const PopulatePlugin = require("./core/plugins/filters/PopulatePlugin");
+const ProjectPlugin = require("./core/plugins/filters/ProjectPlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -47,9 +51,12 @@ app.addPlugins([
   FilterPlugin,
   PaginationPlugin,
   OrdenationPlugin,
-  FieldsProjectPlugin,
+  ProjectPlugin,
   QueryPlugin,
   LookupPlugin,
+  GroupPlugin,
+  AggregatePlugin,
+  PopulatePlugin,
   DBPlugin,
   CollPlugin,
   DocPlugin, // depende de app.findMany
@@ -69,108 +76,44 @@ const logResults = (results) => {
 
 (async () => {
   try {
-    const user = "admin",
-      dbname = "meubanco",
-      collname = "professores";
+    const user = "admin";
+    const dbname = "meubanco";
 
     const commands = [
-      // // 1. Criar coleção de professores
+      // 1 Lookup
+
       // {
-      //   fnName: "createColl",
+      //   fnName: "lookup",
       //   args: {
       //     user,
       //     dbname,
-      //     collname: "professores",
-      //     schema: {
-      //       nome: { type: "string", required: true },
-      //     },
+      //     collname: "pedidos", // coleção principal
+      //     from: "clientes", // coleção estrangeira
+      //     localField: "clienteId", // campo em professores
+      //     foreignField: "_id", // campo em disciplinas
+      //     as: "cliente", // nome do novo campo
       //   },
       // },
 
-      // // 2. Inserir professores
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "professores",
-      //     doc: { nome: "Severino1" },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "professores",
-      //     doc: { nome: "Severino2" },
-      //   },
-      // },
-
-      // // 3. Criar coleção de disciplinas
-      // {
-      //   fnName: "createColl",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     schema: {
-      //       nome: { type: "string", required: true },
-      //       professorId: { type: "number", required: true },
-      //     },
-      //   },
-      // },
-
-      // // 4. Inserir disciplinas (relacionadas aos professores)
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Matemática", professorId: 1 },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Física", professorId: 1 },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Química", professorId: 2 },
-      //   },
-      // },
-
-      // 5. Testar lookup: professores com suas disciplinas
       {
         fnName: "lookup",
         args: {
-          user,
-          dbname,
-          collname: "professores", // coleção principal
-          from: "disciplinas", // coleção estrangeira
-          localField: "_id", // campo em professores
-          foreignField: "professorId", // campo em disciplinas
-          as: "disciplinas", // nome do novo campo
+          user: "admin",
+          dbname: "meubanco",
+          collname: "pedidos",
+          from: "produtos",
+          localField: "itens.produtoId",
+          foreignField: "_id",
+          as: "detalhes.produtos",
         },
       },
-
-      
     ];
 
     const results = await app.runFuncs(commands);
     logResults(results);
   } catch (err) {
-    console.error("Erro no exemplo:", err.message);
+    console.error("Erro:", err.message);
   }
 })();
-// Se quiser adicionar paginação, ordenação ou projeção de campos
+
+// Se quiser adicionar paginação, ordenação ou projeção de campos node test.populate.js

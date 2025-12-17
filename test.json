@@ -1,0 +1,33 @@
+{
+  "status": true,
+  "data": [
+    {
+      "_id": 1,
+      "nome": "João",
+      "email": "joao@exemplo.com",
+      "perfil_id": {
+        "_id": 1,
+        "perfil": "Administrador",
+        "createdAt": "2025-12-16T23:39:22.302Z"
+      },
+      "createdAt": "2025-12-16T23:39:22.302Z"
+    },
+    {
+      "_id": 2,
+      "nome": "Maria",
+      "email": "maria@exemplo.com",
+      "perfil_id": {
+        "_id": 2,
+        "perfil": "Usuário Padrão",
+        "createdAt": "2025-12-16T23:39:22.321Z"
+      },
+      "createdAt": "2025-12-16T23:39:22.321Z"
+    }
+  ]
+}
+
+
+{
+     user,
+    dbname: "Quime",
+}

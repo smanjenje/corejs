@@ -1,0 +1,36 @@
+[
+  {
+    "_id": 1,
+    "clienteId": 1,
+    "cliente": { "_id": 1, "nome": "Ana", "email": "ana@email.com" },
+    "itens": [
+      {
+        "produtoId": 4,
+        "quantidade": 1,
+        "produto": { "nome": "Notebook", "preco": 3500 }
+      },
+      {
+        "produtoId": 5,
+        "quantidade": 2,
+        "produto": { "nome": "Mouse", "preco": 80 }
+      }
+    ]
+  },
+  {
+    "_id": 2,
+    "clienteId": 2,
+    "cliente": { "_id": 2, "nome": "Carlos", "email": "carlos@email.com" },
+    "itens": [
+      {
+        "produtoId": 5,
+        "quantidade": 1,
+        "produto": { "nome": "Mouse", "preco": 80 }
+      },
+      {
+        "produtoId": 6,
+        "quantidade": 1,
+        "produto": { "nome": "Teclado", "preco": 120 }
+      }
+    ]
+  }
+]

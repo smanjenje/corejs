@@ -1,0 +1,46 @@
+o resultado deve ser exatamente assim   
+{
+  "status": true,
+  "data": [
+    {
+      "_id": 1,
+      "nome": "João",
+      "email": "joao@exemplo.com",
+      "perfil_id": 1,
+      "endereco_id": 1,
+      "perfil": {
+        "_id": 1,
+        "perfil": "Administrador"
+      },
+      "endereco": {
+        "_id": 1,
+        "cidade_id": 1,
+        "cidade": {
+          "_id": 1,
+          "cidade_nome": "São Paulo"
+        }
+      },
+      "createdAt": "2025-12-16T23:39:22.302Z"
+    },
+    {
+      "_id": 2,
+      "nome": "Maria",
+      "email": "maria@exemplo.com",
+      "perfil_id": 2,
+      "endereco_id": 2,
+      "perfil": {
+        "_id": 2,
+        "perfil": "Usuário Padrão"
+      },
+      "endereco": {
+        "_id": 2,
+        "cidade_id": 2,
+        "cidade": {
+          "_id": 2,
+          "cidade_nome": "Rio de Janeiro"
+        }
+      },
+      "createdAt": "2025-12-16T23:39:22.321Z"
+    }
+  ]
+}

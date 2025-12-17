@@ -1,0 +1,32 @@
+o comando deve ser exatamente assim   
+{
+    fnName: "joinCollections",
+    args: {
+        user,
+        dbname,
+        localColl: "Users",
+        joins: [
+        {
+            targetColl: "Perfis",
+            localField: "perfil_id",
+            targetField: "_id",
+            joinType: "INNER",
+            as: "perfil",
+        },
+        {
+            targetColl: "Enderecos",
+            localField: "endereco_id",
+            targetField: "_id",
+            joinType: "INNER",
+            as: "endereco",
+        },
+        {
+            targetColl: "Cidades",
+            localField: "endereco.cidade_id",
+            targetField: "_id",
+            joinType: "INNER",
+            as: "cidade",
+        },
+        ],
+    },
+},

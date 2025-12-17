@@ -7,8 +7,7 @@ module.exports = ({ app } = {}) => {
   // --------------------------------------------------
   // Utils
   // --------------------------------------------------
-  // Renomeado para consistência
-  const getNested = (obj, path) =>
+  const getNestedValue = (obj, path) =>
     path.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
 
   const isPrimitive = (v) =>
@@ -24,16 +23,8 @@ module.exports = ({ app } = {}) => {
     $gte: (v, c) => v >= c,
     $lt: (v, c) => v < c,
     $lte: (v, c) => v <= c,
-    // Melhoria sugerida: se 'v' for um array, checa se 'c' está contido em algum item de 'v'.
     $in: (v, c) => Array.isArray(c) && c.includes(v),
     $nin: (v, c) => Array.isArray(c) && !c.includes(v),
-    // Operadores Array Adicionais para maior robustez
-    $all: (v, c) =>
-      Array.isArray(v) &&
-      Array.isArray(c) &&
-      c.every((item) => v.includes(item)),
-    $size: (v, c) => Array.isArray(v) && v.length === c,
-
     $regex: (v, c, opts) => {
       if (typeof v !== "string") return false;
       const re = c instanceof RegExp ? c : new RegExp(c, opts || "");
@@ -64,40 +55,37 @@ module.exports = ({ app } = {}) => {
     if (!criteria || typeof criteria !== "object" || Array.isArray(criteria))
       return false;
 
-    // Lógica Booleana
     if (criteria.$or) return criteria.$or.some((c) => matches(doc, c));
     if (criteria.$and) return criteria.$and.every((c) => matches(doc, c));
     if (criteria.$not) return !matches(doc, criteria.$not);
 
     for (const [field, cond] of Object.entries(criteria)) {
-      const val = getNested(doc, field);
+      const val = getNestedValue(doc, field);
 
-      let currentCond = cond;
-      let matchedOperator = false;
-
-      // 1. Igualdade direta (tratada como $eq implícito para primitivos)
+      // Igualdade direta
       if (isPrimitive(cond)) {
-        currentCond = { $eq: cond };
+        if (Array.isArray(val)) {
+          if (!val.includes(cond)) return false;
+        } else if (val !== cond) {
+          return false;
+        }
+        continue;
       }
 
-      // 2. Operadores/Subdocumento
-      if (typeof currentCond === "object" && currentCond !== null) {
-        // Tenta aplicar todos os operadores na condição
-        for (const [opName, opFn] of Object.entries(operators)) {
-          if (opName in currentCond) {
-            matchedOperator = true;
-            const ok = opFn(val, currentCond[opName], currentCond.$options);
-            if (!ok) return false; // Falha em um operador
-          }
-        }
-
-        // 3. Fallback para Subdocumento (se a condição for um objeto, mas não tiver operadores)
-        // Isso permite filtros aninhados como { 'endereco.cidade': { $eq: 'SP' } } ou { 'endereco': { rua: 'X' } }
-        if (!matchedOperator && !isPrimitive(val)) {
-          if (!matches(val, currentCond)) return false;
+      // Operadores
+      let matchedOperator = false;
+      for (const [opName, opFn] of Object.entries(operators)) {
+        if (opName in cond) {
+          matchedOperator = true;
+          const ok = opFn(val, cond[opName], cond.$options);
+          if (!ok) return false;
         }
       }
-      // Se não for um objeto, já foi tratado como $eq, se for objeto, a lógica acima cuidou.
+
+      // Subdocumento (fallback)
+      if (!matchedOperator && typeof cond === "object" && cond !== null) {
+        if (!matches(val, cond)) return false;
+      }
     }
     return true;
   };
@@ -111,7 +99,6 @@ module.exports = ({ app } = {}) => {
     }
 
     if (criteria.$or || criteria.$and || criteria.$not) {
-      // Filtros booleanos não podem ser facilmente indexados.
       return { indexable: {}, rest: criteria };
     }
 
@@ -120,17 +107,11 @@ module.exports = ({ app } = {}) => {
 
     for (const [field, value] of Object.entries(criteria)) {
       if (isPrimitive(value)) {
-        indexable[field] = value; // Ex: { status: 'ativo' }
-      } else if (
-        value &&
-        typeof value === "object" &&
-        ("$eq" in value || "$in" in value)
-      ) {
-        // Suporta $eq e $in para indexação
-        if ("$eq" in value) indexable[field] = value.$eq;
-        else rest[field] = value; // $in não é ideal para indexação O(1), mas é tratado como o restante
+        indexable[field] = value;
+      } else if (value && typeof value === "object" && "$eq" in value) {
+        indexable[field] = value.$eq;
       } else {
-        rest[field] = value; // Todos os outros operadores e subdocumentos
+        rest[field] = value;
       }
     }
 
@@ -153,7 +134,7 @@ module.exports = ({ app } = {}) => {
 
     if (!Array.isArray(sourceDocs) || sourceDocs.length === 0) return [];
 
-    // Tenta usar índices se não houver docs pré-carregados (para I/O otimizado)
+    // Tenta usar índices se não houver docs pré-carregados
     const useIndex = !Array.isArray(docs) || docs.length === 0;
     const indexMap = useIndex
       ? await app.getCollDocsMap?.({ user, dbname, collname })
@@ -166,7 +147,7 @@ module.exports = ({ app } = {}) => {
       const { indexable, rest } = extractIndexableFilters(criteria);
       let candidates = sourceDocs;
 
-      // Otimização por índice (restrição a $eq em campos únicos)
+      // Otimização por índice
       if (useIndex && Object.keys(indexable).length > 0 && indexMap) {
         let indicesSet = null;
         let validIndex = true;
@@ -179,35 +160,30 @@ module.exports = ({ app } = {}) => {
           const strValue = String(value);
           const list = indexMap[field][strValue] || [];
           const set = new Set(list);
-
-          // Intersecção dos índices para múltiplos filtros indexáveis (AND implícito)
           indicesSet = indicesSet
             ? new Set([...indicesSet].filter((i) => set.has(i)))
             : set;
-
           if (indicesSet.size === 0) {
             validIndex = false;
-            break; // Otimização: se a interseção for zero, para a busca
+            break;
           }
         }
 
         if (validIndex && indicesSet && indicesSet.size > 0) {
-          // Seleciona apenas os documentos correspondentes aos IDs de índice
           candidates = [...indicesSet]
             .map((i) => sourceDocs[i])
             .filter((d) => d != null);
         }
       }
 
-      // Monta critério final, juntando indexable e rest (o que foi tratado pelo índice, mas precisa ser checado)
+      // Monta critério final
       const finalCriteria =
         Object.keys(rest).length > 0 ? { ...indexable, ...rest } : criteria;
 
-      // Filtra candidatos (checa o 'rest' e garante que a correspondência é correta)
+      // Filtra candidatos
       for (const doc of candidates) {
         if (matches(doc, finalCriteria)) {
           const id = doc._id;
-          // Deduplicação
           if (id !== undefined && !seen.has(id)) {
             seen.add(id);
             results.push(doc);

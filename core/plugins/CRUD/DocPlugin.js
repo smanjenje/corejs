@@ -76,11 +76,13 @@ module.exports = ({ app } = {}) => {
             error: "Função app.getCollData não disponível",
           };
         }
-        const data = Array.isArray(
-          await app.getCollData({ user, dbname, collname })
-        )
-          ? await app.getCollData({ user, dbname, collname })
-          : [];
+        // const data = Array.isArray(
+        //   await app.getCollData({ user, dbname, collname })
+        // )
+        //   ? await app.getCollData({ user, dbname, collname })
+        //   : [];
+        const rawData = await app.getCollData({ user, dbname, collname });
+        const data = Array.isArray(rawData) ? rawData : [];
 
         // preparação/validação dos documentos antes de inserir
         let preparedDocs = docs;
@@ -159,7 +161,8 @@ module.exports = ({ app } = {}) => {
           };
         }
 
-        const data = await app.getCollData({ user, dbname, collname });
+        const rawData = await app.getCollData({ user, dbname, collname });
+        const data = Array.isArray(rawData) ? rawData : [];
         const matches = await app.findMany({ user, dbname, collname, queries });
         if (!matches || matches.length === 0)
           return { status: true, updated: [], errors: [] };
@@ -233,7 +236,8 @@ module.exports = ({ app } = {}) => {
           };
         }
 
-        const data = await app.getCollData({ user, dbname, collname });
+        const rawData = await app.getCollData({ user, dbname, collname });
+        const data = Array.isArray(rawData) ? rawData : [];
         const matches = await app.findMany({ user, dbname, collname, queries });
 
         if (!matches || matches.length === 0)
@@ -287,8 +291,9 @@ module.exports = ({ app } = {}) => {
             error: "Função app.getCollData não disponível",
           };
         }
-        const data = await app.getCollData({ user, dbname, collname });
-        return Array.isArray(data) ? data : [];
+        const rawData = await app.getCollData({ user, dbname, collname });
+        const data = Array.isArray(rawData) ? rawData : [];
+        return data;
       } catch (err) {
         return { status: false, error: err.message || String(err) };
       }

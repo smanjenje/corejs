@@ -2,61 +2,58 @@
   "dbname": "meubanco",
   "collections": [
     {
-      "collname": "professores",
-      "file": "professores.json",
+      "collname": "Users",
+      "file": "Users.json",
       "schema": {
         "_id": {
           "type": "number",
           "required": true,
           "autoValue": "increment"
         },
-        "nome": {
+        "name": {
           "type": "string",
           "required": true
+        },
+        "email": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
         }
       },
-      "nextId": 3,
-      "createdAt": "2025-12-08T02:36:27.127Z"
+      "nextId": 5,
+      "createdAt": "2025-12-15T23:50:34.925Z"
     },
     {
-      "collname": "disciplinas",
-      "file": "disciplinas.json",
+      "collname": "Orders",
+      "file": "Orders.json",
       "schema": {
         "_id": {
           "type": "number",
           "required": true,
           "autoValue": "increment"
         },
-        "nome": {
+        "userId": {
+          "type": "number",
+          "required": true
+        },
+        "produto": {
           "type": "string",
           "required": true
         },
-        "professorId": {
+        "quantidade": {
           "type": "number",
           "required": true
+        },
+        "preco": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string"
         }
       },
       "nextId": 4,
-      "createdAt": "2025-12-08T02:36:27.296Z"
-    },
-    {
-      "collname": "pedidos",
-      "file": "pedidos.json",
-      "schema": {
-        "_id": {
-          "type": "number",
-          "required": true,
-          "autoValue": "increment"
-        },
-        "cliente": {
-          "type": "string"
-        },
-        "itens": {
-          "type": "array"
-        }
-      },
-      "nextId": 3,
-      "createdAt": "2025-12-08T14:05:51.791Z"
+      "createdAt": "2025-12-15T23:50:34.994Z"
     }
   ],
   "createdAt": 1765036544105

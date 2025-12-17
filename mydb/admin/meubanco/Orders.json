@@ -1,0 +1,26 @@
+[
+  {
+    "_id": 1,
+    "userId": 1,
+    "produto": "Notebook",
+    "quantidade": 2,
+    "preco": 1200,
+    "createdAt": "2025-12-16T00:03:13.837Z"
+  },
+  {
+    "_id": 2,
+    "userId": 2,
+    "produto": "Mouse",
+    "quantidade": 5,
+    "preco": 25,
+    "createdAt": "2025-12-16T00:03:13.848Z"
+  },
+  {
+    "_id": 3,
+    "userId": 1,
+    "produto": "Teclado",
+    "quantidade": 1,
+    "preco": 80,
+    "createdAt": "2025-12-16T00:03:13.862Z"
+  }
+]

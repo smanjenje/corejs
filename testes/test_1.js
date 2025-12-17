@@ -32,36 +32,37 @@ app.addPlugins([
 (async () => {
   try {
     const commands = [
-      {
-        fnName: "createDB",
-        args: { user: "admin", dbname: "meubanco" },
-      },
+      // {
+      //   fnName: "createDB",
+      //   args: { user: "admin", dbname: "Quime" },
+      // },
       {
         fnName: "createColl",
         args: {
           user: "admin",
-          dbname: "meubanco",
-          collname: "disciplinas",
+          dbname: "Quime",
+          collname: "Users",
           schema: {
             nome: { type: "string", required: true },
+            senha:{type:"string", required:true}
           },
         },
       },
-      {
-        fnName: "insertDoc",
-        args: {
-          user: "admin",
-          dbname: "meubanco",
-          collname: "disciplinas",
-          doc: {
-            nome: "Severino",
-          },
-        },
-      },
-      {
-        fnName: "getDB",
-        args: { user: "admin", dbname: "meubanco" },
-      },
+      // {
+      //   fnName: "insertDoc",
+      //   args: {
+      //     user: "admin",
+      //     dbname: "meubanco",
+      //     collname: "disciplinas",
+      //     doc: {
+      //       nome: "Severino",
+      //     },
+      //   },
+      // },
+      // {
+      //   fnName: "getDB",
+      //   args: { user: "admin", dbname: "meubanco" },
+      // },
     ];
 
     // Executa todas as funções em ordem
@@ -71,10 +72,10 @@ app.addPlugins([
 
     console.dir(results, { depth: null, colors: true });
 
-    // Se quiser, pode extrair os resultados individuais
-    const dbResult = results[2];
-    console.log("DB completo:");
-    console.dir(dbResult, { depth: null, colors: true });
+    // // Se quiser, pode extrair os resultados individuais
+    // const dbResult = results[2];
+    // console.log("DB completo:");
+    // console.dir(dbResult, { depth: null, colors: true });
   } catch (err) {
     console.error("Erro no exemplo:", err.message);
   }

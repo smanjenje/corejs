@@ -22,12 +22,10 @@ const DocsIndexPlugin = require("./core/plugins/indexMap/DocsIndexPlugin");
 const DBPlugin = require("./core/plugins/CRUD/DBPlugin");
 const CollPlugin = require("./core/plugins/CRUD/CollPlugin");
 const DocPlugin = require("./core/plugins/CRUD/DocPlugin");
+// filtros
 const FilterPlugin = require("./core/plugins/filters/FilterPlugin");
-const PaginationPlugin = require("./core/plugins/filters/PaginationPlugin");
-const OrdenationPlugin = require("./core/plugins/filters/OrdenationPlugin");
-const FieldsProjectPlugin = require("./core/plugins/filters/FieldsProjectPlugin");
 const QueryPlugin = require("./core/plugins/filters/QueryPlugin");
-const LookupPlugin = require("./core/plugins/filters/LookupPlugin");
+const PopulatePlugin = require("./core/plugins/joins/PopulatePlugin");
 
 // ================================
 // Inicializa CoreJS
@@ -36,23 +34,29 @@ const app = coreJS({ root: "./mydb" });
 
 // Adiciona plugins na ordem correta
 app.addPlugins([
+  // utilitários
   UtilsPlugin,
   DatePlugin,
   FSPlugin,
+  CachePlugin,
+  //  preparação e schema
   SchemaPlugin,
   PrepareDocPlugin,
-  CachePlugin,
+
+  //   indexação
   CollMapIndexPlugin,
   DocsIndexPlugin,
+
+  // filtros
   FilterPlugin,
-  PaginationPlugin,
-  OrdenationPlugin,
-  FieldsProjectPlugin,
   QueryPlugin,
-  LookupPlugin,
+
+  // CRUDs
   DBPlugin,
   CollPlugin,
   DocPlugin, // depende de app.findMany
+
+  PopulatePlugin,
 ]);
 
 const logResults = (results) => {
@@ -69,108 +73,87 @@ const logResults = (results) => {
 
 (async () => {
   try {
-    const user = "admin",
-      dbname = "meubanco",
-      collname = "professores";
+    const user = "admin";
+    const dbname = "meubanco";
 
     const commands = [
-      // // 1. Criar coleção de professores
       // {
       //   fnName: "createColl",
       //   args: {
       //     user,
       //     dbname,
-      //     collname: "professores",
+      //     collname: "Users",
       //     schema: {
       //       nome: { type: "string", required: true },
+      //       email: { type: "string" }, // exemplo de outro campo
+      //       createdAt: { type: "string" }, // timestamp ISO
       //     },
       //   },
       // },
-
-      // // 2. Inserir professores
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "professores",
-      //     doc: { nome: "Severino1" },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "professores",
-      //     doc: { nome: "Severino2" },
-      //   },
-      // },
-
-      // // 3. Criar coleção de disciplinas
       // {
       //   fnName: "createColl",
       //   args: {
       //     user,
       //     dbname,
-      //     collname: "disciplinas",
+      //     collname: "Orders",
       //     schema: {
-      //       nome: { type: "string", required: true },
-      //       professorId: { type: "number", required: true },
+      //       userId: { type: "number", required: true }, // referência para Users
+      //       produto: { type: "string", required: true },
+      //       quantidade: { type: "number", required: true },
+      //       preco: { type: "number" },
+      //       createdAt: { type: "string" },
       //     },
       //   },
       // },
 
-      // // 4. Inserir disciplinas (relacionadas aos professores)
+      // // Inserir usuários
       // {
       //   fnName: "insertDoc",
       //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Matemática", professorId: 1 },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Física", professorId: 1 },
-      //   },
-      // },
-      // {
-      //   fnName: "insertDoc",
-      //   args: {
-      //     user,
-      //     dbname,
-      //     collname: "disciplinas",
-      //     doc: { nome: "Química", professorId: 2 },
+      //     user: "admin",
+      //     dbname: "meubanco",
+      //     collname: "Users",
+      //     doc: [
+      //       { name: "Alice", email: "alice@email.com" },
+      //       { name: "Bob", email: "bob@email.com" },
+      //     ],
       //   },
       // },
 
-      // 5. Testar lookup: professores com suas disciplinas
+      // // Inserir pedidos
+      // {
+      //   fnName: "insertDoc",
+      //   args: {
+      //     user: "admin",
+      //     dbname: "meubanco",
+      //     collname: "Orders",
+      //     doc: [
+      //       { userId: 1, produto: "Notebook", quantidade: 2, preco: 1200 },
+      //       { userId: 2, produto: "Mouse", quantidade: 5, preco: 25 },
+      //       { userId: 1, produto: "Teclado", quantidade: 1, preco: 80 },
+      //     ],
+      //   },
+      // },
+
       {
-        fnName: "lookup",
+        fnName: "populate",
         args: {
-          user,
-          dbname,
-          collname: "professores", // coleção principal
-          from: "disciplinas", // coleção estrangeira
-          localField: "_id", // campo em professores
-          foreignField: "professorId", // campo em disciplinas
-          as: "disciplinas", // nome do novo campo
+          user: "admin",
+          dbname: "meubanco",
+          collname: "orders", // coleção principal
+          localField: "userId", // campo na collection orders
+          foreignColl: "users", // coleção a ser populada
+          foreignField: "_id", // campo da collection users que referencia
+          as: "user", // nome do campo que vai receber os dados do usuário
         },
       },
-
-      
     ];
 
     const results = await app.runFuncs(commands);
     logResults(results);
   } catch (err) {
-    console.error("Erro no exemplo:", err.message);
+    console.error("Erro:", err.message);
   }
 })();
-// Se quiser adicionar paginação, ordenação ou projeção de campos
+
+// Se quiser adicionar paginação, ordenação ou projeção de campos node test.populate.js

@@ -1,0 +1,12 @@
+[
+  {
+    "_id": 1,
+    "perfil": "Administrador",
+    "createdAt": "2025-12-17T00:33:39.002Z"
+  },
+  {
+    "_id": 2,
+    "perfil": "Usuário Padrão",
+    "createdAt": "2025-12-17T00:33:39.008Z"
+  }
+]

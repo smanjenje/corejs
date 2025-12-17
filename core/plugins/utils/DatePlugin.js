@@ -1,68 +1,107 @@
 // core/plugins/DatePlugin.js
-// Plugin utilitário de datas — pequenas helpers sem dependências externas.
-// Uso: app.addPlugin(require('./core/plugins/DatePlugin'))
-// Expondo funções: now, nowISO, ts, toISO, fromISO, toDate, format, add, diff, startOf, endOf, isBefore, isAfter, isSame, humanizeDiff, Tempo
+// Plugin utilitário de datas — leve, seguro e sem dependências.
+// Suporte a operações comuns: criação, formatação, cálculo, comparação e humanização.
 
-module.exports = ({ app, options = {} } = {}) => {
-  app.pluginsNames.DatePlugin = true;
-  // Tempo em ms (útil para TTLs)
-  const Tempo = {
-    MS: 1,
-    SECOND: 1000,
-    MINUTE: 60 * 1000,
-    HOUR: 60 * 60 * 1000,
-    DAY: 24 * 60 * 60 * 1000,
-    WEEK: 7 * 24 * 60 * 60 * 1000,
-  };
+/**
+ * @typedef {Object} AddFields
+ * @property {number} [years]
+ * @property {number} [months]
+ * @property {number} [days]
+ * @property {number} [hours]
+ * @property {number} [minutes]
+ * @property {number} [seconds]
+ * @property {number} [ms]
+ */
 
-  // Normaliza entrada para Date (não muta original)
-  function toDate(input) {
-    if (input instanceof Date) return new Date(input.getTime());
-    if (typeof input === "number") return new Date(input);
-    if (typeof input === "string") {
-      const d = new Date(input);
-      if (Number.isNaN(d.getTime())) return null;
-      return d;
+/**
+ * Normaliza entrada para Date válida. Retorna null se inválido.
+ * Aceita: Date, number (timestamp), string ISO, string numérica.
+ * @param {any} input
+ * @returns {Date | null}
+ */
+function parseDate(input) {
+  if (input instanceof Date) return new Date(input.getTime());
+  if (typeof input === "number") return new Date(input);
+  if (typeof input === "string") {
+    // Aceita string numérica (ex: "1712345678901")
+    if (/^\d+$/.test(input)) {
+      const num = Number(input);
+      return Number.isNaN(num) ? null : new Date(num);
     }
-    return null;
-  }
-
-  function now() {
-    return new Date();
-  }
-
-  function nowISO() {
-    return new Date().toISOString();
-  }
-
-  function ts() {
-    return Date.now();
-  }
-
-  function toISO(date) {
-    const d = toDate(date || now());
-    if (!d) throw new Error("toISO: data inválida");
-    return d.toISOString();
-  }
-
-  function fromISO(isoString) {
-    if (!isoString) return null;
-    const d = new Date(isoString);
+    const d = new Date(input);
     return Number.isNaN(d.getTime()) ? null : d;
   }
+  return null;
+}
 
-  function toTimestamp(input) {
+module.exports = ({ app, options = {} } = {}) => {
+  // Registro do plugin
+  if (typeof app?.pluginsNames === "object") {
+    app.pluginsNames.DatePlugin = true;
+  }
+
+  // Constantes de tempo em milissegundos
+  const Tempo = {
+    MS: 1,
+    SECOND: 1_000,
+    MINUTE: 60 * 1_000,
+    HOUR: 60 * 60 * 1_000,
+    DAY: 24 * 60 * 60 * 1_000,
+    WEEK: 7 * 24 * 60 * 60 * 1_000,
+  };
+
+  // Funções principais
+  const now = () => new Date();
+  const nowISO = () => new Date().toISOString();
+  const ts = () => Date.now();
+
+  /**
+   * @param {*} input
+   * @returns {Date | null}
+   */
+  const toDate = parseDate;
+
+  /**
+   * @param {*} date
+   * @returns {string}
+   */
+  const toISO = (date) => {
+    const d = toDate(date ?? now());
+    if (!d) throw new Error("toISO: data inválida");
+    return d.toISOString();
+  };
+
+  /**
+   * @param {string} isoString
+   * @returns {Date | null}
+   */
+  const fromISO = (iso = "") => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  /**
+   * @param {*} input
+   * @returns {number}
+   */
+  const toTimestamp = (input) => {
     const d = toDate(input);
     if (!d) throw new Error("toTimestamp: data inválida");
     return d.getTime();
-  }
+  };
 
-  // format usando Intl.DateTimeFormat
-  // opts: { locale, options } where options são as opções do Intl.DateTimeFormat
-  function format(date, opts = {}) {
+  /**
+   * Formata data usando Intl.DateTimeFormat
+   * @param {*} date
+   * @param {{ locale?: string, options?: Intl.DateTimeFormatOptions }} opts
+   * @returns {string}
+   */
+  const format = (date, opts = {}) => {
     const d = toDate(date);
     if (!d) throw new Error("format: data inválida");
-    const locale = opts.locale || options.locale || "en-US";
+    const locale =
+      opts.locale || options.locale || app?.options?.locale || "en-US";
     const fmtOpts = opts.options || {
       year: "numeric",
       month: "2-digit",
@@ -70,15 +109,21 @@ module.exports = ({ app, options = {} } = {}) => {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
+      hour12: false,
     };
     return new Intl.DateTimeFormat(locale, fmtOpts).format(d);
-  }
+  };
 
-  // add: adiciona valores (pode receber números negativos)
-  // fields: { years, months, days, hours, minutes, seconds, ms }
-  function add(inputDate, fields = {}) {
-    const d = toDate(inputDate || now());
+  /**
+   * Adiciona valores a uma data (anos, meses, dias, etc.)
+   * @param {*} inputDate
+   * @param {AddFields} fields
+   * @returns {Date}
+   */
+  const add = (inputDate, fields = {}) => {
+    const d = toDate(inputDate ?? now());
     if (!d) throw new Error("add: data inválida");
+
     const {
       years = 0,
       months = 0,
@@ -89,13 +134,14 @@ module.exports = ({ app, options = {} } = {}) => {
       ms = 0,
     } = fields;
 
-    if (years || months) {
-      const y = d.getFullYear() + Number(years || 0);
-      const m = d.getMonth() + Number(months || 0);
-      // Ajusta ano/mês automaticamente usando Date constructor
-      d.setFullYear(y);
-      d.setMonth(m);
+    // Anos e meses primeiro (afetam o calendário)
+    if (years !== 0 || months !== 0) {
+      const y = d.getFullYear() + Number(years);
+      const m = d.getMonth() + Number(months);
+      d.setFullYear(y, m, d.getDate()); // setFullYear ajusta automaticamente dias inválidos
     }
+
+    // Unidades fixas (não dependem do calendário)
     if (days) d.setDate(d.getDate() + Number(days));
     if (hours) d.setHours(d.getHours() + Number(hours));
     if (minutes) d.setMinutes(d.getMinutes() + Number(minutes));
@@ -103,15 +149,21 @@ module.exports = ({ app, options = {} } = {}) => {
     if (ms) d.setMilliseconds(d.getMilliseconds() + Number(ms));
 
     return d;
-  }
+  };
 
-  // diff entre duas datas: unit -> ms|s|m|h|d
-  function diff(a, b = undefined, unit = "ms") {
+  /**
+   * Calcula diferença entre duas datas
+   * @param {*} a
+   * @param {*} [b]
+   * @param {'ms'|'s'|'m'|'h'|'d'} [unit='ms']
+   * @returns {number}
+   */
+  const diff = (a, b = undefined, unit = "ms") => {
     const da = toDate(a);
-    if (!da) throw new Error("diff: data A inválida");
     const db = b === undefined ? now() : toDate(b);
-    if (!db) throw new Error("diff: data B inválida");
+    if (!da || !db) throw new Error("diff: data inválida");
     const delta = da.getTime() - db.getTime();
+
     switch (unit) {
       case "s":
       case "sec":
@@ -127,16 +179,21 @@ module.exports = ({ app, options = {} } = {}) => {
       case "d":
       case "day":
         return delta / Tempo.DAY;
-      case "ms":
       default:
-        return delta;
+        return delta; // 'ms'
     }
-  }
+  };
 
-  // startOf / endOf support basic units: year, month, day, hour, minute, second
-  function startOf(input, unit = "day") {
-    const d = toDate(input || now());
+  /**
+   * Retorna início da unidade (ano, mês, dia, etc.)
+   * @param {*} input
+   * @param {'year'|'month'|'day'|'hour'|'minute'|'second'} [unit='day']
+   * @returns {Date}
+   */
+  const startOf = (input, unit = "day") => {
+    const d = toDate(input ?? now());
     if (!d) throw new Error("startOf: data inválida");
+
     switch (unit) {
       case "year":
         d.setMonth(0, 1);
@@ -159,21 +216,28 @@ module.exports = ({ app, options = {} } = {}) => {
         d.setMilliseconds(0);
         break;
       default:
-        throw new Error("startOf: unit inválido");
+        throw new Error(`startOf: unidade inválida '${unit}'`);
     }
     return d;
-  }
+  };
 
-  function endOf(input, unit = "day") {
-    const d = toDate(input || now());
+  /**
+   * Retorna fim da unidade
+   * @param {*} input
+   * @param {'year'|'month'|'day'|'hour'|'minute'|'second'} [unit='day']
+   * @returns {Date}
+   */
+  const endOf = (input, unit = "day") => {
+    const d = toDate(input ?? now());
     if (!d) throw new Error("endOf: data inválida");
+
     switch (unit) {
       case "year":
         d.setMonth(11, 31);
         d.setHours(23, 59, 59, 999);
         break;
       case "month":
-        d.setMonth(d.getMonth() + 1, 0); // último dia do mês
+        d.setMonth(d.getMonth() + 1, 0); // último dia do mês atual
         d.setHours(23, 59, 59, 999);
         break;
       case "day":
@@ -189,65 +253,104 @@ module.exports = ({ app, options = {} } = {}) => {
         d.setMilliseconds(999);
         break;
       default:
-        throw new Error("endOf: unit inválido");
+        throw new Error(`endOf: unidade inválida '${unit}'`);
     }
     return d;
-  }
+  };
 
-  // Comparadores
-  function isBefore(a, b = now()) {
-    const da = toDate(a);
-    const db = toDate(b);
+  /**
+   * Verifica se a data A é anterior a B
+   * @param {*} a
+   * @param {*} [b]
+   * @returns {boolean}
+   */
+  const isBefore = (a, b = now()) => {
+    const da = toDate(a),
+      db = toDate(b);
     if (!da || !db) throw new Error("isBefore: data inválida");
     return da.getTime() < db.getTime();
-  }
+  };
 
-  function isAfter(a, b = now()) {
-    const da = toDate(a);
-    const db = toDate(b);
+  /**
+   * Verifica se a data A é posterior a B
+   * @param {*} a
+   * @param {*} [b]
+   * @returns {boolean}
+   */
+  const isAfter = (a, b = now()) => {
+    const da = toDate(a),
+      db = toDate(b);
     if (!da || !db) throw new Error("isAfter: data inválida");
     return da.getTime() > db.getTime();
-  }
+  };
 
-  function isSame(a, b, unit = "ms") {
-    const delta = Math.abs(diff(a, b, "ms"));
-    if (unit === "ms") return delta === 0;
-    if (unit === "s") return delta < Tempo.SECOND;
-    if (unit === "m") return delta < Tempo.MINUTE;
-    if (unit === "h") return delta < Tempo.HOUR;
-    if (unit === "d") return delta < Tempo.DAY;
-    return delta === 0;
-  }
+  /**
+   * Verifica se duas datas são "iguais" na unidade especificada
+   * @param {*} a
+   * @param {*} b
+   * @param {'ms'|'s'|'m'|'h'|'d'|'month'|'year'} [unit='ms']
+   * @returns {boolean}
+   */
+  const isSame = (a, b, unit = "ms") => {
+    const da = toDate(a),
+      db = toDate(b);
+    if (!da || !db) throw new Error("isSame: data inválida");
 
-  // humanizeDiff: retorna string amigável entre duas datas (a - b)
-  function humanizeDiff(a, b = now()) {
+    switch (unit) {
+      case "ms":
+        return da.getTime() === db.getTime();
+      case "s":
+        return (
+          Math.floor(da.getTime() / 1000) === Math.floor(db.getTime() / 1000)
+        );
+      case "m":
+        return (
+          Math.floor(da.getTime() / Tempo.MINUTE) ===
+          Math.floor(db.getTime() / Tempo.MINUTE)
+        );
+      case "h":
+        return (
+          Math.floor(da.getTime() / Tempo.HOUR) ===
+          Math.floor(db.getTime() / Tempo.HOUR)
+        );
+      case "d":
+        return (
+          da.getFullYear() === db.getFullYear() &&
+          da.getMonth() === db.getMonth() &&
+          da.getDate() === db.getDate()
+        );
+      case "month":
+        return (
+          da.getFullYear() === db.getFullYear() &&
+          da.getMonth() === db.getMonth()
+        );
+      case "year":
+        return da.getFullYear() === db.getFullYear();
+      default:
+        return da.getTime() === db.getTime();
+    }
+  };
+
+  /**
+   * Retorna diferença legível entre duas datas
+   * @param {*} a
+   * @param {*} [b]
+   * @returns {string}
+   */
+  const humanizeDiff = (a, b = now()) => {
     const deltaMs = Math.abs(diff(a, b, "ms"));
     if (deltaMs < Tempo.SECOND) return `${Math.round(deltaMs)} ms`;
     if (deltaMs < Tempo.MINUTE)
       return `${Math.round(deltaMs / Tempo.SECOND)} s`;
     if (deltaMs < Tempo.HOUR) return `${Math.round(deltaMs / Tempo.MINUTE)} m`;
     if (deltaMs < Tempo.DAY) return `${Math.round(deltaMs / Tempo.HOUR)} h`;
-    if (deltaMs < Tempo.WEEK) return `${Math.round(deltaMs / Tempo.DAY)} d`;
     return `${Math.round(deltaMs / Tempo.DAY)} d`;
-  }
+  };
 
-  // pequena utilidade para parse flexível (fallbacks): tries Date parsing, then numeric
-  function parse(input) {
-    if (input instanceof Date) return input;
-    if (typeof input === "number") return new Date(input);
-    if (typeof input === "string") {
-      // aceita timestamps numéricos em string também
-      if (/^\d+$/.test(input)) return new Date(Number(input));
-      const d = new Date(input);
-      if (!Number.isNaN(d.getTime())) return d;
-    }
-    return null;
-  }
-
-  // Integração com app
-  const api = {
-    Tempo,
-    toDate: parse, // fornece parse flexível
+  // API pública
+  return {
+    // Tempo,
+    toDate,
     now,
     nowISO,
     ts,
@@ -264,6 +367,4 @@ module.exports = ({ app, options = {} } = {}) => {
     isSame,
     humanizeDiff,
   };
-
-  return api;
 };

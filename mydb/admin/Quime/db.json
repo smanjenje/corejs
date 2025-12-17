@@ -1,0 +1,82 @@
+{
+  "dbname": "Quime",
+  "collections": [
+    {
+      "collname": "Users",
+      "file": "Users.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "nome": {
+          "type": "string",
+          "required": true
+        },
+        "email": {
+          "type": "string"
+        },
+        "perfil_id": {
+          "type": "number"
+        },
+        "endereco_id": {
+          "type": "number"
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.833Z"
+    },
+    {
+      "collname": "Perfis",
+      "file": "Perfis.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "perfil": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.865Z"
+    },
+    {
+      "collname": "Enderecos",
+      "file": "Enderecos.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "cidade_id": {
+          "type": "number"
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.889Z"
+    },
+    {
+      "collname": "Cidades",
+      "file": "Cidades.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "cidade_nome": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.931Z"
+    }
+  ],
+  "createdAt": 1765383213063
+}
