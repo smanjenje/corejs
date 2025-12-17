@@ -25,6 +25,7 @@ const BackupPlugin = require("./core/plugins/backupsplugins/BackupPlugin");
 const CryptoPlugin = require("./core/plugins/utils/CryptoPlugin");
 const AuditLogPlugin = require("./core/plugins/utils/AuditLogPlugin");
 const AuthPlugin = require("./core/plugins/utils/AuthPlugin");
+const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
 
 // --- CONFIGURAÇÕES ---
 const DB_ROOT = path.join(__dirname, "mydb");
@@ -56,6 +57,7 @@ app.addPlugins([
   PaginationPlugin,
   BackupPlugin,
   AuditLogPlugin,
+    JoinPlugin,
 ]);
 
 

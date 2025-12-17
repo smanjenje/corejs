@@ -214,16 +214,38 @@ const coreJS = (options = {}) => {
   const safeParseObj = (str) => {
     if (!str || typeof str !== "string") return {};
     try {
-      // Coloca aspas nas chaves não-quoted
-      let fixed = str.replace(/(\w+)\s*:/g, '"$1":');
-      // Substitui aspas simples por duplas
-      fixed = fixed.replace(/'/g, '"');
-      // Parse JSON seguro
-      return JSON.parse(fixed);
+      // 1. Envolve chaves não citadas com aspas duplas
+      // 2. Transforma aspas simples em duplas
+      let prepared = str
+        .replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"');
+
+      // Remove vírgulas extras antes de fechar chaves/colchetes (comum em JS, proibido em JSON)
+      prepared = prepared.replace(/,\s*([}\]])/g, "$1");
+
+      return JSON.parse(prepared);
     } catch (err) {
-      throw new Error("Não foi possível parsear a string para objeto: " + str);
+      // Se falhar, tenta uma abordagem via Function (mais flexível, mas ainda isolada)
+      try {
+        return new Function(`return (${str})`)();
+      } catch (e) {
+        throw new Error("Erro de sintaxe no objeto DSL: " + str);
+      }
     }
   };
+  // const safeParseObj = (str) => {
+  //   if (!str || typeof str !== "string") return {};
+  //   try {
+  //     // Coloca aspas nas chaves não-quoted
+  //     let fixed = str.replace(/(\w+)\s*:/g, '"$1":');
+  //     // Substitui aspas simples por duplas
+  //     fixed = fixed.replace(/'/g, '"');
+  //     // Parse JSON seguro
+  //     return JSON.parse(fixed);
+  //   } catch (err) {
+  //     throw new Error("Não foi possível parsear a string para objeto: " + str);
+  //   }
+  // };
 
   app.prepareCmds = (cmdsStr) => {
     if (!cmdsStr || typeof cmdsStr !== "string") return [];
