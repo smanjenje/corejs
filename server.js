@@ -37,8 +37,8 @@ const AUTH_SECRET = "corejs-super-secret-2025";
 const options = {
   root: DB_ROOT,
   secret: AUTH_SECRET,
-  ttl: { val: 1, tipo: "hora" },
-  cleanupIntervalMs: { val: 5, tipo: "horas" },
+  ttl: { val: 2, tipo: "hora" },
+  cleanupIntervalMs: { val: 5, tipo: "hora" },
 };
 const app = coreJS(options);
 

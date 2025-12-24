@@ -377,5 +377,109 @@
       }
     ],
     "expiresAt": 1766587277850
+  },
+  "admin/Quime/coll/Perfis/meta": {
+    "value": {
+      "collname": "Perfis",
+      "file": "Perfis.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "perfil": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.865Z"
+    },
+    "expiresAt": 1766592138205
+  },
+  "admin/Quime/coll/Perfis/data": {
+    "value": [
+      {
+        "_id": 1,
+        "perfil": "Administrador",
+        "createdAt": "2025-12-17T00:33:39.002Z"
+      },
+      {
+        "_id": 2,
+        "perfil": "Usuário Padrão",
+        "createdAt": "2025-12-17T00:33:39.008Z"
+      }
+    ],
+    "expiresAt": 1766592138206
+  },
+  "admin/Quime/coll/Enderecos/meta": {
+    "value": {
+      "collname": "Enderecos",
+      "file": "Enderecos.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "cidade_id": {
+          "type": "number"
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.889Z"
+    },
+    "expiresAt": 1766592138209
+  },
+  "admin/Quime/coll/Enderecos/data": {
+    "value": [
+      {
+        "_id": 1,
+        "cidade_id": 1,
+        "createdAt": "2025-12-17T00:33:39.025Z"
+      },
+      {
+        "_id": 2,
+        "cidade_id": 2,
+        "createdAt": "2025-12-17T00:33:39.031Z"
+      }
+    ],
+    "expiresAt": 1766592138209
+  },
+  "admin/Quime/coll/Cidades/meta": {
+    "value": {
+      "collname": "Cidades",
+      "file": "Cidades.json",
+      "schema": {
+        "_id": {
+          "type": "number",
+          "required": true,
+          "autoValue": "increment"
+        },
+        "cidade_nome": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "nextId": 3,
+      "createdAt": "2025-12-17T00:33:38.931Z"
+    },
+    "expiresAt": 1766592138212
+  },
+  "admin/Quime/coll/Cidades/data": {
+    "value": [
+      {
+        "_id": 1,
+        "cidade_nome": "São Paulo",
+        "createdAt": "2025-12-17T00:33:39.047Z"
+      },
+      {
+        "_id": 2,
+        "cidade_nome": "Rio de Janeiro",
+        "createdAt": "2025-12-17T00:33:39.052Z"
+      }
+    ],
+    "expiresAt": 1766592138212
   }
 }
