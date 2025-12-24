@@ -1,14 +1,14 @@
+// core/plugins/UtilsPlugin.js
 module.exports = ({ app, options = {} } = {}) => {
   if (!app.pluginsNames || typeof app.pluginsNames !== "object") {
-    try {
-      app.pluginsNames = app.pluginsNames || {};
-    } catch (e) {}
+    app.pluginsNames = {};
   }
-  if (app.pluginsNames && typeof app.pluginsNames === "object") {
-    app.pluginsNames.UtilsPlugin = true;
-  }
+  app.pluginsNames.UtilsPlugin = true;
 
-  // ---------- Helpers ----------
+  // --------------------------------------------------
+  // Helpers
+  // --------------------------------------------------
+
   const ensureParams = (params = {}, fields = []) => {
     for (const f of fields) {
       if (params[f] === undefined || params[f] === null) {
@@ -17,57 +17,69 @@ module.exports = ({ app, options = {} } = {}) => {
     }
   };
 
-  // suporta arrays automaticamente
+  // --------------------------------------------------
+  // Utils básicos
+  // --------------------------------------------------
+
+  const isObject = (val) => val !== null && typeof val === "object";
+  const isPlainObject = (val) =>
+    isObject(val) && Object.getPrototypeOf(val) === Object.prototype;
+
+  // --------------------------------------------------
+  // Clone seguro
+  // --------------------------------------------------
+
+  const clone = (v) => {
+    if (typeof structuredClone === "function") return structuredClone(v);
+    return JSON.parse(JSON.stringify(v));
+  };
+  const deepClone = clone;
+
+  // --------------------------------------------------
+  // setNestedValue CORRIGIDO (arrays + objetos)
+  // --------------------------------------------------
+
   const setNestedValue = (obj, path, value) => {
+    if (!isObject(obj)) return;
+
     const keys = path.split(".");
     let curr = obj;
 
     for (let i = 0; i < keys.length - 1; i++) {
       const k = keys[i];
+      const nextIsIndex = !isNaN(keys[i + 1]);
 
-      // se a chave é número → array
       if (!isNaN(k)) {
         const idx = Number(k);
-        if (!Array.isArray(curr)) curr = [];
-        if (!curr[idx]) curr[idx] = {};
+        if (!Array.isArray(curr)) return; // proteção
+        if (!curr[idx]) curr[idx] = nextIsIndex ? [] : {};
         curr = curr[idx];
-        continue;
+      } else {
+        if (!curr[k] || typeof curr[k] !== "object") {
+          curr[k] = nextIsIndex ? [] : {};
+        }
+        curr = curr[k];
       }
-
-      if (!curr[k] || typeof curr[k] !== "object") {
-        curr[k] = {};
-      }
-
-      curr = curr[k];
     }
 
     const last = keys[keys.length - 1];
 
     if (!isNaN(last)) {
-      if (!Array.isArray(curr)) curr = [];
+      if (!Array.isArray(curr)) return;
       curr[Number(last)] = value;
     } else {
       curr[last] = value;
     }
   };
 
-  const isObject = (val) => val !== null && typeof val === "object";
-  const isPlainObject = (val) =>
-    isObject(val) && Object.getPrototypeOf(val) === Object.prototype;
+  const getNestedField = (obj, path) => {
+    if (!obj || typeof obj !== "object") return undefined;
+    return path.split(".").reduce((acc, part) => acc && acc[part], obj);
+  };
 
-  const deepClone = (obj) => {
-    if (typeof structuredClone === "function") {
-      return structuredClone(obj);
-    }
-    return JSON.parse(JSON.stringify(obj));
-  };
-  const clone = (obj) => {
-    try {
-      return JSON.parse(JSON.stringify(obj));
-    } catch {
-      return Object.assign({}, obj);
-    }
-  };
+  // --------------------------------------------------
+  // pick / omit
+  // --------------------------------------------------
 
   const pick = (obj = {}, keys = []) =>
     keys.reduce((acc, k) => {
@@ -81,28 +93,31 @@ module.exports = ({ app, options = {} } = {}) => {
       return acc;
     }, {});
 
-  // protege contra getters perigosos
-  const safeGet = (obj, k) => {
-    const desc = Object.getOwnPropertyDescriptor(obj, k);
-    if (desc && (desc.get || desc.set)) return undefined;
-    return obj[k];
-  };
+  // --------------------------------------------------
+  // Sanitização segura
+  // --------------------------------------------------
 
   const sanitizeObject = (input) => {
-    if (!isObject(input)) return input;
-    if (Array.isArray(input)) return input.map((v) => sanitizeObject(v));
+    if (Array.isArray(input)) {
+      return input.map((v) => sanitizeObject(v));
+    }
+
+    if (!isPlainObject(input)) return input;
 
     const out = {};
     for (const k of Object.keys(input)) {
-      if (k === "__proto__" || k === "constructor" || k === "prototype")
+      if (k === "__proto__" || k === "constructor" || k === "prototype") {
         continue;
-
-      const v = safeGet(input, k);
-      if (isObject(v)) out[k] = sanitizeObject(v);
-      else out[k] = v;
+      }
+      const v = input[k];
+      out[k] = sanitizeObject(v);
     }
     return out;
   };
+
+  // --------------------------------------------------
+  // Validação simples
+  // --------------------------------------------------
 
   const validateDoc = (schema = {}, doc = {}) => {
     const errors = [];
@@ -133,22 +148,71 @@ module.exports = ({ app, options = {} } = {}) => {
     return { valid: errors.length === 0, errors };
   };
 
-  // deep merge opcional
+  // --------------------------------------------------
+  // Merge imutável
+  // --------------------------------------------------
+
   const merge = (target = {}, source = {}) => {
     const out = { ...target };
     for (const [k, v] of Object.entries(source)) {
       if (isPlainObject(v) && isPlainObject(out[k])) {
-        out[k] = merge(out[k], v); // deep merge
+        out[k] = merge(out[k], v);
       } else {
-        out[k] = v; // override
+        out[k] = v;
       }
     }
     return out;
   };
 
-  const api = {
+  const isPrimitive = (v) =>
+    v === null || ["string", "number", "boolean"].includes(typeof v);
+
+  const operators = {
+    $eq: (v, c) => v === c,
+    $ne: (v, c) => v !== c,
+    $gt: (v, c) => v > c,
+    $gte: (v, c) => v >= c,
+    $lt: (v, c) => v < c,
+    $lte: (v, c) => v <= c,
+    $in: (v, c) => Array.isArray(c) && c.includes(v),
+    $nin: (v, c) => Array.isArray(c) && !c.includes(v),
+    $all: (v, c) =>
+      Array.isArray(v) &&
+      Array.isArray(c) &&
+      c.every((item) => v.includes(item)),
+    $size: (v, c) => Array.isArray(v) && v.length === c,
+    $regex: (v, c, opts) => {
+      if (typeof v !== "string") return false;
+      const re = c instanceof RegExp ? c : new RegExp(c, opts || "");
+      return re.test(v);
+    },
+    $startsWith: (v, c) => typeof v === "string" && v.startsWith(c),
+    $endsWith: (v, c) => typeof v === "string" && v.endsWith(c),
+    $containsAny: (v, c) =>
+      typeof v === "string" && Array.isArray(c) && c.some((s) => v.includes(s)),
+    $containsAll: (v, c) =>
+      typeof v === "string" &&
+      Array.isArray(c) &&
+      c.every((s) => v.includes(s)),
+    $between: (v, c) => {
+      if (!Array.isArray(c) || c.length < 2) return false;
+      const [min, max] = c;
+      const val = v instanceof Date ? v.getTime() : v;
+      const a = min instanceof Date ? min.getTime() : min;
+      const b = max instanceof Date ? max.getTime() : max;
+      return val >= a && val <= b;
+    },
+  };
+
+  // --------------------------------------------------
+  // API
+  // --------------------------------------------------
+
+  return {
     ensureParams,
     setNestedValue,
+    getNestedField,
+    isPrimitive,
     isObject,
     isPlainObject,
     deepClone,
@@ -158,7 +222,6 @@ module.exports = ({ app, options = {} } = {}) => {
     sanitizeObject,
     validateDoc,
     merge,
+    operators,
   };
-
-  return api;
 };

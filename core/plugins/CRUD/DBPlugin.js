@@ -3,12 +3,11 @@
 // Não usa 'path' — usa apenas métodos expostos pelo FSPlugin (app.getFullPath, app.getUserFolder, app.getDBFolder, app.listFolder, app.pathExists, app.readJSON, app.writeJSON, app.removeFolder, app.readColl, app.addCollection, etc.)
 
 module.exports = ({ app, options } = {}) => {
-      app.pluginsNames.DBPlugin = true;
+  app.pluginsNames.DBPlugin = true;
   const ensureUserAndDB = (user, dbname) => {
     if (!user) throw new Error("Usuário não especificado.");
     if (!dbname) throw new Error("Nome do banco não especificado.");
   };
-
 
   app.cacheKeyDB = (user, dbname) => `${user}/${dbname}/db/full`;
   app.cacheKeyFullDB = (user, dbname) => `${user}/${dbname}/db/AllData`;
@@ -112,7 +111,9 @@ module.exports = ({ app, options } = {}) => {
         }
 
         cacheSet(key, dbMeta);
-        return dbMeta;
+        // 🔒 clone defensivo
+        const dbMetas = app.clone(dbMeta);
+        return dbMetas;
       } catch (err) {
         return { status: false, error: err.message || String(err) };
       }
@@ -137,8 +138,6 @@ module.exports = ({ app, options } = {}) => {
         return { status: false, error: err.message || String(err) };
       }
     },
-
-  
 
     getDB: async ({ user, dbname } = {}) => {
       try {
@@ -175,7 +174,9 @@ module.exports = ({ app, options } = {}) => {
           collections[coll.collname] = { meta: coll, documents: data };
         }
 
-        const result = { dbname, collections };
+        let result = { dbname, collections };
+        result = app.clone(result);
+
         cacheSet(key, result);
         return { cache: false, ...result };
       } catch (err) {
@@ -203,7 +204,9 @@ module.exports = ({ app, options } = {}) => {
         const db = await app.getDB({ user, dbname });
         if (db && db.cache !== undefined) delete db.cache;
 
-        const result = { db, collMap, docsMap };
+        let result = { db, collMap, docsMap };
+        result = app.clone(result);
+
         cacheSet(key, result, ttl || { val: 1, tipo: "minuto" });
 
         return { cache: false, ...result };

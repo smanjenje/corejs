@@ -4,6 +4,19 @@
 module.exports = ({ app } = {}) => {
   if (!app) throw new Error("QueryPlugin: app obrigatório");
 
+  /**
+   * Executa uma consulta completa com filtros opcionais.
+   * @param {Object} params
+   * @param {string} params.user
+   * @param {string} params.dbname
+   * @param {string} params.collname
+   * @param {Array|Object} [params.queries] - critérios para findMany
+   * @param {Object} [params.orderBy] - ex: { _id: "desc" }
+   * @param {string[]} [params.fields] - ex: ["_id", "nome"]
+   * @param {number} [params.page=1]
+   * @param {number} [params.limit=10]
+   * @returns {Promise<Object>} { docs, meta } (se paginação ativada) ou { docs }
+   */
   const query = async ({
     user,
     dbname,
@@ -13,7 +26,8 @@ module.exports = ({ app } = {}) => {
     fields,
     page,
     limit,
-  } = {}) => {
+  }) => {
+    // Validação obrigatória
     if (!user || !dbname || !collname) {
       throw new Error("query requer user, dbname e collname");
     }
@@ -27,28 +41,24 @@ module.exports = ({ app } = {}) => {
       docs = await app.findMany({ user, dbname, collname, queries });
     } else {
       // Sem filtro → carrega todos
-      const rawData = (await app.getCollData({ user, dbname, collname })) ?? [];
-      docs = Array.isArray(rawData) ? rawData.map(app.clone) : [];
+      docs = (await app.getCollData({ user, dbname, collname })) ?? [];
+      if (!Array.isArray(docs)) docs = [];
     }
 
     // 2. ORDENAÇÃO (opcional)
     if (orderBy) {
       if (typeof app.sort !== "function") {
-        throw new Error("QueryPlugin requer SortLimitPlugin");
+        throw new Error("QueryPlugin requer OrdenationPlugin");
       }
-      docs = await app.sort({ docs: docs.map(app.clone), sortSpec: orderBy });
+      docs = await app.sort({ docs, orderBy });
     }
 
     // 3. PROJEÇÃO (opcional)
     if (fields) {
       if (typeof app.project !== "function") {
-        throw new Error("QueryPlugin requer ProjectPlugin");
+        throw new Error("QueryPlugin requer FieldsProjectPlugin");
       }
-      // Transformando fields array em spec { field: 1 }
-      const spec = Array.isArray(fields)
-        ? fields.reduce((acc, f) => ((acc[f] = 1), acc), {})
-        : fields;
-      docs = await app.project({ docs: docs.map(app.clone), spec });
+      docs = await app.project({ docs, fields });
     }
 
     // 4. PAGINAÇÃO (opcional)
@@ -56,10 +66,10 @@ module.exports = ({ app } = {}) => {
       if (typeof app.paginate !== "function") {
         throw new Error("QueryPlugin requer PaginationPlugin");
       }
-      return await app.paginate({ docs: docs.map(app.clone), page, limit });
+      return await app.paginate({ docs, page, limit });
     }
 
-    return { docs: docs.map(app.clone) };
+    return { docs };
   };
 
   return { query };

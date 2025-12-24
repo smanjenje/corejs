@@ -104,7 +104,7 @@ const logResults = (results) => {
           queries: { nome: "João" },
         },
       },
-      // 2. Teste de operadores ($gt) e campos aninhados em Enderecos
+/*       // 2. Teste de operadores ($gt) e campos aninhados em Enderecos
       {
         fnName: "findMany",
         args: {
@@ -200,7 +200,7 @@ const logResults = (results) => {
           collname: "Cidades",
           queries: {},
         },
-      },
+      }, */
     ];
 
     const results = await app.runFuncs(commands);

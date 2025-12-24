@@ -1,39 +1,10 @@
 // core/plugins/joins/PopulatePlugin.js
-// Suporta: path, as, targetColl, targetId (opcional), select
-// ✅ Suporte completo a campos aninhados: path="a.b.id", as="a.b.data"
-
 module.exports = ({ app } = {}) => {
-  if (!app) {
-    throw new Error("PopulatePlugin: app é obrigatório");
-  }
+  if (!app) throw new Error("PopulatePlugin: app é obrigatório");
 
   if (app.pluginsNames && typeof app.pluginsNames === "object") {
     app.pluginsNames.PopulatePlugin = true;
   }
-
-  // --------------------------------------------------
-  // Utils para campos aninhados
-  // --------------------------------------------------
-  const getNested = (obj, path) => {
-    if (!obj || typeof obj !== "object") return undefined;
-    return path
-      .split(".")
-      .reduce(
-        (o, key) => (o && o[key] !== undefined ? o[key] : undefined),
-        obj
-      );
-  };
-
-  const setNested = (obj, path, value) => {
-    if (!obj || typeof obj !== "object") return;
-    const keys = path.split(".");
-    const lastKey = keys.pop();
-    const parent = keys.reduce((o, key) => {
-      if (!o[key] || typeof o[key] !== "object") o[key] = {};
-      return o[key];
-    }, obj);
-    parent[lastKey] = value;
-  };
 
   /**
    * Popula campos de referência com suporte a targetId personalizado e campos aninhados.
@@ -44,92 +15,83 @@ module.exports = ({ app } = {}) => {
    * @param {string} [options.collname] - necessário se docs não fornecido
    * @param {Array} [options.docs]
    * @param {Array<{
-   *   path: string,        // ex: "userId" ou "owner.profileId"
-   *   as?: string,         // ex: "user" ou "owner.profile"
+   *   path: string,
+   *   as?: string,
    *   targetColl: string,
-   *   targetId?: string,   // default "_id"
-   *   select?: string[]    // campos a retornar da coleção alvo
+   *   targetId?: string,
+   *   select?: string[]
    * }>} [options.populates]
    * @returns {Promise<Array>}
    */
   const populate = async ({ user, dbname, collname, docs, populates } = {}) => {
     let documents = docs;
     if (!Array.isArray(documents)) {
-      if (!collname) {
+      if (!collname)
         throw new Error(
           "docs deve ser um array ou collname deve ser informado"
         );
-      }
       const rawData = await app.getCollData({ user, dbname, collname });
-      documents = Array.isArray(rawData) ? rawData : [];
+      documents = Array.isArray(rawData) ? rawData.map(app.clone) : [];
     }
 
-    if (!Array.isArray(populates) || populates.length === 0) {
-      return documents;
-    }
+    if (!Array.isArray(populates) || populates.length === 0) return documents;
 
     for (const pop of populates) {
       const { path, as, targetColl, targetId = "_id", select = [] } = pop;
-
       if (!path || !targetColl) continue;
 
       const targetField = as || path;
 
-      // ✅ Lógica corrigida para finalSelect
+      // Final select inclui _id por padrão se necessário
       let finalSelect = null;
       if (Array.isArray(select) && select.length > 0) {
-        if (as === undefined && !select.includes("_id")) {
-          finalSelect = ["_id", ...select];
-        } else {
-          finalSelect = select;
-        }
+        finalSelect =
+          !as && !select.includes("_id") ? ["_id", ...select] : select;
       }
 
-      // ✅ Coleta valores de path aninhado
+      // Coleta valores únicos de referência
       const refValues = [
         ...new Set(
-          documents.map((doc) => getNested(doc, path)).filter((v) => v != null)
+          documents
+            .map((d) => app.getNestedField(d, path))
+            .filter((v) => v != null)
         ),
       ];
-
       if (refValues.length === 0) continue;
 
+      // Busca todos os documentos da coleção alvo
       const targetDocs = await app.getCollData({
         user,
         dbname,
         collname: targetColl,
       });
       if (!Array.isArray(targetDocs)) {
-        for (const doc of documents) {
-          setNested(doc, targetField, null);
-        }
+        documents.forEach((d) => app.setNestedValue(d, targetField, null));
         continue;
       }
 
+      // Cria mapa de referência para lookup O(1)
       const targetMap = new Map();
       const refValueSet = new Set(refValues);
 
       for (const doc of targetDocs) {
         const idValue = doc[targetId];
         if (idValue != null && refValueSet.has(idValue)) {
-          if (finalSelect !== null) {
-            const projected = {};
-            for (const field of finalSelect) {
-              projected[field] = doc[field];
-            }
-            targetMap.set(idValue, projected);
-          } else {
-            targetMap.set(idValue, { ...doc });
-          }
+          const cloned = app.clone(doc);
+          const projected =
+            Array.isArray(finalSelect) && finalSelect.length > 0
+              ? app.pick(cloned, finalSelect)
+              : cloned;
+          targetMap.set(idValue, projected);
         }
       }
 
-      // ✅ Atribui valor populado em campo aninhado
+      // Atribui valor populado no campo aninhado
       for (const doc of documents) {
-        const ref = getNested(doc, path);
+        const ref = app.getNestedField(doc, path);
         if (ref != null) {
           const populatedValue = targetMap.get(ref) || null;
-          setNested(doc, targetField, populatedValue);
+          app.setNestedValue(doc, targetField, populatedValue);
         }
       }
     }

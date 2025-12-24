@@ -26,6 +26,7 @@ const CryptoPlugin = require("./core/plugins/utils/CryptoPlugin");
 const AuditLogPlugin = require("./core/plugins/utils/AuditLogPlugin");
 const AuthPlugin = require("./core/plugins/utils/AuthPlugin");
 const JoinPlugin = require("./core/plugins/sql/JoinPlugin");
+const LifecyclePlugin = require("./core/plugins/utils/LifecyclePlugin");
 
 // --- CONFIGURAÇÕES ---
 const DB_ROOT = path.join(__dirname, "mydb");
@@ -33,12 +34,19 @@ const PORT = 3000;
 const AUTH_SECRET = "corejs-super-secret-2025";
 
 // --- INICIALIZAÇÃO COREJS ---
-const app = coreJS({ root: DB_ROOT, secret: AUTH_SECRET });
+const options = {
+  root: DB_ROOT,
+  secret: AUTH_SECRET,
+  ttl: { val: 1, tipo: "hora" },
+  cleanupIntervalMs: { val: 5, tipo: "horas" },
+};
+const app = coreJS(options);
 
 app.addPlugins([
   AuthPlugin,
   CryptoPlugin,
   UtilsPlugin,
+  LifecyclePlugin,
   DatePlugin,
   FSPlugin,
   CachePlugin,
@@ -57,10 +65,8 @@ app.addPlugins([
   PaginationPlugin,
   BackupPlugin,
   AuditLogPlugin,
-    JoinPlugin,
+  JoinPlugin,
 ]);
-
-
 
 // --- EXPRESS SETUP ---
 const appExpress = express();
@@ -198,16 +204,22 @@ appExpress.post(
     } catch (error) {
       console.error("❌ Erro na API:", error.message);
       res.status(400).json({ success: false, error: error.message });
+    } finally {
+      // Limpa o cache após cada requisição para evitar vazamento de dados
+
+      results = null;
     }
   }
 );
 
 // --- INICIALIZAÇÃO ---
-appExpress.listen(PORT, () => {
+appExpress.listen(PORT, async() => {
   console.log(`
   ✅ CoreJS API Server Ativo
   🌍 URL: http://localhost:${PORT}
   📂 Root: ${DB_ROOT}
   🛡️ Auth: Ativado (JWT-HMAC)
   `);
+  const info =await app.cache.ttlRemaining({ key: "admin/Quime/meta" });
+  console.log("Cache TTL Remaining:", info);
 });

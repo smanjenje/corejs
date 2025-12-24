@@ -1,208 +1,157 @@
-// core/plugins/CachePlugin.js
-// Plugin de cache em memória com TTL, cleanup automático, estatísticas e invalidação avançada.
-
-/**
- * @typedef {Object} TTLOptions
- * @property {number} val
- * @property {string} tipo
- */
-
-/**
- * @typedef {Object} CacheEntry
- * @property {*} value
- * @property {number} expiresAt - timestamp (0 = never expires)
- */
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = ({ app, options = {} } = {}) => {
+  if (!app) throw new Error("CachePlugin: app é obrigatório");
+
   // Registro do plugin
   if (typeof app?.pluginsNames === "object") {
     app.pluginsNames.CachePlugin = true;
   }
 
+  // ---------------------------
   // Configurações
-  const DEFAULT_TTL = options.ttl ?? 0; // 0, false, null → never expire
-  const CLEANUP_INTERVAL_MS = options.cleanupIntervalMs ?? 0;
+  // ---------------------------
+  const ROOT = options.root ?? path.join(process.cwd(), "mydb");
+  fs.ensureDirSync(ROOT);
 
-  // Unidades de tempo (em ms)
-  const Tempo = {
-    SEGUNDO: 1_000,
-    MINUTO: 60 * 1_000,
-    HORA: 60 * 60 * 1_000,
-    DIA: 24 * 60 * 60 * 1_000,
-    SEMANA: 7 * 24 * 60 * 60 * 1_000,
-    MES: 30 * 24 * 60 * 60 * 1_000,
-    ANO: 365 * 24 * 60 * 60 * 1_000,
+  const DEFAULT_TTL = options.ttl ?? 0; // 0 = nunca expira
+  const CACHE_FILE = path.join(ROOT, options.cacheFile ?? "cache.json");
 
-    /**
-     * Converte valor + unidade para milissegundos
-     * @param {number} val
-     * @param {string} tipo
-     * @returns {number}
-     */
-    time(val, tipo) {
-      if (typeof val !== "number" || val < 0) {
-        throw new Error("Tempo.time: 'val' deve ser número >= 0");
-      }
-      if (!tipo || typeof tipo !== "string") {
-        throw new Error("Tempo.time: 'tipo' deve ser string");
-      }
-
-      const map = {
-        segundo: 1,
-        segundos: 1,
-        s: 1,
-        minuto: 60,
-        minutos: 60,
-        m: 60,
-        hora: 3_600,
-        horas: 3_600,
-        h: 3_600,
-        dia: 86_400,
-        dias: 86_400,
-        d: 86_400,
-        semana: 604_800,
-        semanas: 604_800,
-        mes: 2_592_000,
-        meses: 2_592_000,
-        ano: 31_536_000,
-        anos: 31_536_000,
-      };
-
-      const factor = map[tipo.toLowerCase()];
-      if (factor === undefined) {
-        throw new Error(`Tempo.time: unidade inválida '${tipo}'`);
-      }
-
-      return val * factor * 1_000; // converter para ms
-    },
-  };
-
-  // Armazenamento e estatísticas
-  const store = new Map(); // Map<string, CacheEntry>
-  const stats = {
-    hits: 0,
-    misses: 0,
-    sets: 0,
-    deletes: 0,
-    clears: 0,
-  };
-
+  const store = new Map();
+  const stats = { hits: 0, misses: 0, sets: 0, deletes: 0, clears: 0 };
   let cleanupHandle = null;
+  let saveTimeout = null;
+
   const now = () => Date.now();
 
-  /**
-   * Calcula timestamp de expiração
-   * @param {number|TTLOptions|boolean|null|undefined} ttl
-   * @returns {number} timestamp (0 = never expires)
-   */
+  // ---------------------------
+  // Conversão de unidades de tempo
+  // ---------------------------
+  const timeMap = {
+    s: 1000,
+    segundo: 1000,
+    segundos: 1000,
+    m: 60000,
+    minuto: 60000,
+    minutos: 60000,
+    h: 3600000,
+    hora: 3600000,
+    horas: 3600000,
+    d: 86400000,
+    dia: 86400000,
+    dias: 86400000,
+  };
+
+  // Calcula o timestamp de expiração com base no TTL
   const getExpiresAt = (ttl) => {
-    // Valores "falsy" (exceto 0 numérico) = never expire
-    if (ttl == null || ttl === false) return 0;
-    if (ttl === 0 && typeof ttl === "number") return 0;
+    if (ttl == null || ttl === false || ttl === 0) return 0; // nunca expira
 
-    if (typeof ttl === "number") {
-      return ttl > 0 ? now() + ttl : 0;
+    if (typeof ttl === "number") return now() + ttl;
+
+    if (
+      typeof ttl === "object" &&
+      ttl.val != null &&
+      typeof ttl.tipo === "string"
+    ) {
+      const unit = ttl.tipo.toLowerCase();
+      const factor = timeMap[unit];
+      if (factor != null) return now() + ttl.val * factor;
     }
 
-    if (typeof ttl === "object" && ttl !== null) {
-      const { val, tipo } = ttl;
-      if (typeof val !== "number" || typeof tipo !== "string") {
-        throw new Error("TTL objeto deve ter { val: number, tipo: string }");
+    return 0; // fallback: nunca expira
+  };
+
+  // Converte intervalo para milissegundos (0 = desativado)
+  const parseInterval = (interval) => {
+    if (interval == null || interval === 0 || interval === false) return 0;
+
+    if (typeof interval === "number") return interval;
+
+    if (
+      typeof interval === "object" &&
+      interval.val != null &&
+      typeof interval.tipo === "string"
+    ) {
+      const unit = interval.tipo.toLowerCase();
+      const factor = timeMap[unit];
+      if (factor == null) {
+        throw new Error(`Unidade de tempo desconhecida: ${interval.tipo}`);
       }
-      return now() + Tempo.time(val, tipo);
+      return interval.val * factor;
     }
 
-    return 0; // fallback
+    throw new Error(
+      "Intervalo inválido. Use número (ms) ou {val: N, tipo: 'unidade'}"
+    );
   };
 
-  /**
-   * Verifica se entrada está expirada
-   * @param {CacheEntry} entry
-   * @returns {boolean}
-   */
-  const isExpired = (entry) => {
-    return entry?.expiresAt !== 0 && now() > entry.expiresAt;
-  };
+  // Verifica se uma entrada expirou
+  const isExpired = (entry) =>
+    entry && entry.expiresAt !== 0 && now() > entry.expiresAt;
 
-  /**
-   * Remove entradas expiradas
-   */
-  const purgeExpired = () => {
-    for (const [key, entry] of store.entries()) {
-      if (isExpired(entry)) {
-        store.delete(key);
-        stats.deletes++;
+  // ---------------------------
+  // Persistência (com debounce)
+  // ---------------------------
+  const saveCacheToFile = () => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    saveTimeout = setTimeout(async () => {
+      try {
+        const obj = {};
+        for (const [key, entry] of store.entries()) {
+          if (!isExpired(entry)) {
+            obj[key] = { value: entry.value, expiresAt: entry.expiresAt };
+          }
+        }
+        await fs.ensureFile(CACHE_FILE);
+        await fs.writeJSON(CACHE_FILE, obj, { spaces: 2 });
+      } catch (err) {
+        console.error("CachePlugin: erro ao salvar cache:", err);
       }
-    }
+    }, 500);
   };
 
-  /**
-   * Inicia limpeza periódica
-   * @param {number} intervalMs
-   */
-  const startCleanup = (intervalMs) => {
-    if (cleanupHandle || !intervalMs || intervalMs <= 0) return;
-    cleanupHandle = setInterval(purgeExpired, intervalMs);
-    if (cleanupHandle.unref) cleanupHandle.unref(); // não impedir exit do processo
-  };
-
-  /**
-   * Para limpeza periódica
-   */
-  const stopCleanup = () => {
-    if (cleanupHandle) {
-      clearInterval(cleanupHandle);
-      cleanupHandle = null;
+  const loadCacheFromFile = async () => {
+    try {
+      if (!(await fs.pathExists(CACHE_FILE))) return;
+      const obj = await fs.readJSON(CACHE_FILE);
+      for (const [key, entry] of Object.entries(obj)) {
+        if (!isExpired(entry)) {
+          store.set(key, entry);
+        }
+      }
+    } catch (err) {
+      console.warn("CachePlugin: erro ao carregar cache:", err.message);
     }
   };
 
   // ---------------------------
-  // API Pública do Cache
+  // API Pública
   // ---------------------------
-
-  /**
-   * Define valor no cache
-   * @param {string} key
-   * @param {*} value
-   * @param {number|TTLOptions} [ttl]
-   * @returns {boolean}
-   */
   const set = (key, value, ttl = DEFAULT_TTL) => {
-    if (typeof key !== "string")
-      throw new Error("Cache.set: key deve ser string");
     const expiresAt = getExpiresAt(ttl);
     store.set(key, { value, expiresAt });
     stats.sets++;
+    saveCacheToFile();
     return true;
   };
 
-  /**
-   * Obtém valor do cache
-   * @param {string} key
-   * @param {*} [defaultValue]
-   * @returns {*}
-   */
   const get = (key, defaultValue = null) => {
-    if (typeof key !== "string")
-      throw new Error("Cache.get: key deve ser string");
     const entry = store.get(key);
     if (!entry || isExpired(entry)) {
-      if (entry) store.delete(key); // limpa se expirado
+      if (entry) {
+        store.delete(key);
+        stats.deletes++;
+      }
       stats.misses++;
-      if (entry) stats.deletes++;
       return defaultValue;
     }
     stats.hits++;
     return entry.value;
   };
 
-  /**
-   * Verifica se chave existe (e não está expirada)
-   * @param {string} key
-   * @returns {boolean}
-   */
   const has = (key) => {
-    if (typeof key !== "string") return false;
     const entry = store.get(key);
     if (!entry) return false;
     if (isExpired(entry)) {
@@ -213,97 +162,127 @@ module.exports = ({ app, options = {} } = {}) => {
     return true;
   };
 
-  /**
-   * Remove chave do cache
-   * @param {string} key
-   * @returns {boolean}
-   */
   const del = (key) => {
-    if (typeof key !== "string")
-      throw new Error("Cache.del: key deve ser string");
     const existed = store.delete(key);
-    if (existed) stats.deletes++;
+    if (existed) {
+      stats.deletes++;
+      saveCacheToFile();
+    }
     return existed;
   };
 
-  /**
-   * Limpa todo o cache
-   * @returns {boolean}
-   */
   const clear = () => {
     store.clear();
     stats.clears++;
+    saveCacheToFile();
     return true;
   };
 
-  /**
-   * Invalida chaves por padrão (RegExp ou string)
-   * @param {RegExp|string} pattern
-   * @returns {number} número de chaves removidas
-   */
   const invalidate = (pattern) => {
-    if (!pattern) return 0;
     let removed = 0;
+    const keysToTest = [...store.keys()];
+    const isRegExp = pattern instanceof RegExp;
 
-    if (pattern instanceof RegExp) {
-      for (const key of store.keys()) {
-        if (pattern.test(key)) {
-          store.delete(key);
-          removed++;
-          stats.deletes++;
-        }
-      }
-    } else {
-      const str = String(pattern);
-      for (const key of store.keys()) {
-        if (key.includes(str)) {
-          store.delete(key);
-          removed++;
-          stats.deletes++;
-        }
+    for (const key of keysToTest) {
+      const match = isRegExp
+        ? pattern.test(key)
+        : key.includes(String(pattern));
+      if (match) {
+        store.delete(key);
+        removed++;
+        stats.deletes++;
       }
     }
-
+    if (removed > 0) saveCacheToFile();
     return removed;
   };
 
-  /**
-   * Retorna todas as chaves (não expiradas)
-   * @returns {string[]}
-   */
-  const keys = () => {
-    const validKeys = [];
+  const keys = () => [...store.keys()].filter((k) => !isExpired(store.get(k)));
+  const size = () => keys().length;
+  const getStats = () => ({ ...stats, size: size() });
+
+  // const ttlRemaining = async ({ key }) => {
+  //   await loadCacheFromFile();
+  //   const entry = store.get(key);
+  //   if (!entry) return "Inexistente";
+  //   if (entry.expiresAt === 0) return "Infinito";
+  //   const diff = entry.expiresAt - now();
+  //   if (diff <= 0) return "Expirado";
+  //   return `${Math.round(diff / 1000)}s restantes`;
+  // };
+
+  const ttlRemaining = async ({ key }) => {
+    // Opcional: recarregar do disco para garantir estado atualizado
+    await loadCacheFromFile();
+
+    const entry = store.get(key);
+    if (!entry) return "Inexistente";
+    if (entry.expiresAt === 0) return "Infinito";
+
+    const diffMs = entry.expiresAt - now();
+    if (diffMs <= 0) return "Expirado";
+
+    // Converter milissegundos para h, m, s
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`); // mostra "0s" se for exatamente 0
+
+    return `${parts.join(" ")} restantes`;
+  };
+
+  // ---------------------------
+  // Limpeza automática
+  // ---------------------------
+  const purgeExpired = () => {
     for (const [key, entry] of store.entries()) {
-      if (!isExpired(entry)) {
-        validKeys.push(key);
-      } else {
+      if (isExpired(entry)) {
         store.delete(key);
         stats.deletes++;
       }
     }
-    return validKeys;
   };
 
-  /**
-   * Tamanho do cache (não expiradas)
-   * @returns {number}
-   */
-  const size = () => keys().length;
+  const startCleanup = (interval) => {
+    const intervalMs = parseInterval(interval);
+    if (intervalMs <= 0 || cleanupHandle) return;
 
-  /**
-   * Retorna estatísticas do cache
-   * @returns {Object}
-   */
-  const getStats = () => ({ ...stats, size: size() });
+    cleanupHandle = setInterval(() => {
+      purgeExpired();
+      saveCacheToFile();
+    }, intervalMs);
 
-  // Inicializa cleanup, se configurado
-  if (CLEANUP_INTERVAL_MS > 0) {
-    startCleanup(CLEANUP_INTERVAL_MS);
-  }
+    if (cleanupHandle.unref) cleanupHandle.unref();
+  };
 
-  // API exposta no app
+  const stopCleanup = () => {
+    if (cleanupHandle) {
+      clearInterval(cleanupHandle);
+      cleanupHandle = null;
+    }
+  };
+
+  // ---------------------------
+  // Inicialização
+  // ---------------------------
+  // Define intervalo de limpeza: padrão = 3 horas, a menos que definido
+  const cleanupIntervalMs = options.cleanupIntervalMs ?? {
+    val: 3,
+    tipo: "hora",
+  };
+
+  loadCacheFromFile();
+  startCleanup(cleanupIntervalMs);
+
+  // ---------------------------
+  // Exposição da API
+  // ---------------------------
   const cacheAPI = {
-    Tempo,
     set,
     get,
     has,
@@ -315,11 +294,10 @@ module.exports = ({ app, options = {} } = {}) => {
     getStats,
     startCleanup,
     stopCleanup,
+    ttlRemaining,
+    ROOT,
   };
 
-  // Integra com app
   app.cache = cacheAPI;
-
-  // Retorna para compatibilidade com plugin system
   return cacheAPI;
 };

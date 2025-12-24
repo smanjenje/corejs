@@ -222,33 +222,66 @@ module.exports = ({ app } = {}) => {
         cacheSet(metaKey, coll);
         cacheSet(dataKey, data);
 
-        return { meta: coll, data };
+        let result = { meta: coll, total_docs: data.length, data };
+        result = app.clone(result);
+        return result;
       } catch (error) {
         return { status: false, msg: error.message || String(error) };
       }
     },
 
-    // retorna somente os dados (array)
-    getCollData: async ({ user, dbname, collname } = {}) => {
-      try {
-        app.ensureParams({ user, dbname, collname }, [
-          "user",
-          "dbname",
-          "collname",
-        ]);
+    // // retorna somente os dados (array)
+    // getCollData: async ({ user, dbname, collname } = {}) => {
+    //   try {
+    //     app.ensureParams({ user, dbname, collname }, [
+    //       "user",
+    //       "dbname",
+    //       "collname",
+    //     ]);
+    //     const key = cacheKeyData(user, dbname, collname);
+    //     const cached = cacheGet(key);
+    //     if (cached && Array.isArray(cached)) return cached;
+
+    //     const res = await app.readColl?.({ user, dbname, collname });
+    //     if (res && res.status === false)
+    //       throw new Error(res.msg || res.error || "erro ao ler collection");
+    //     const data = res?.data || [];
+    //     cacheSet(key, data);
+    //     return data;
+    //   } catch (error) {
+    //     throw error;
+    //   }
+    // },
+
+    getCollData: async ({ user, dbname, collname, noCache = false } = {}) => {
+      app.ensureParams({ user, dbname, collname }, [
+        "user",
+        "dbname",
+        "collname",
+      ]);
+
+      if (noCache == false) {
         const key = cacheKeyData(user, dbname, collname);
         const cached = cacheGet(key);
-        if (cached && Array.isArray(cached)) return cached;
-
-        const res = await app.readColl?.({ user, dbname, collname });
-        if (res && res.status === false)
-          throw new Error(res.msg || res.error || "erro ao ler collection");
-        const data = res?.data || [];
-        cacheSet(key, data);
-        return data;
-      } catch (error) {
-        throw error;
+        if (Array.isArray(cached)) {
+          return cached.map(app.clone); // 🔒 nunca retorna cache direto
+        }
       }
+
+      const res = await app.readColl?.({ user, dbname, collname });
+
+      if (res && res.status === false) {
+        throw new Error(res.msg || res.error || "erro ao ler collection");
+      }
+
+      const data = (res?.data || []).map(app.clone);
+
+      if (noCache == false) {
+        const key = cacheKeyData(user, dbname, collname);
+        cacheSet(key, data);
+      }
+
+      return data.map(app.clone);
     },
 
     getCollMeta: async ({ user, dbname, collname } = {}) => {

@@ -5,10 +5,14 @@ module.exports = ({ app } = {}) => {
 
   /**
    * Pagina um array de documentos.
-   * * @param {Object} args
-   * @param {Array} args.docs - O array de documentos vindo de um findMany ou Aggregate.
-   * @param {number} [args.page=1] - O número da página atual.
-   * @param {number} [args.limit=10] - Quantidade de itens por página.
+   *
+   * @param {Object} args
+   * @param {Array} args.docs - Array de documentos vindo de findMany ou Aggregate.
+   * @param {string} args.user
+   * @param {string} args.dbname
+   * @param {string} args.collname
+   * @param {number} [args.page=1] - Número da página.
+   * @param {number} [args.limit=10] - Itens por página.
    * @returns {Object} { status: true, data: Array, pagination: Object }
    */
   const paginate = async ({
@@ -20,7 +24,6 @@ module.exports = ({ app } = {}) => {
     limit = 10,
   } = {}) => {
     // Garante que docs seja um array
-
     let data = docs;
     if (!Array.isArray(data)) {
       if (!collname) {
@@ -29,26 +32,26 @@ module.exports = ({ app } = {}) => {
         );
       }
       const rawData = await app.getCollData({ user, dbname, collname });
-      data = Array.isArray(rawData) ? rawData : [];
+      data = Array.isArray(rawData) ? rawData.map(app.clone) : [];
+    } else {
+      // Clona os docs para manter imutabilidade
+      data = data.map(app.clone);
     }
 
-    // Converte para números inteiros para evitar erros de string
     const currentPage = Math.max(1, parseInt(page) || 1);
     const pageSize = Math.max(1, parseInt(limit) || 10);
 
     const totalDocs = data.length;
     const totalPages = Math.ceil(totalDocs / pageSize);
 
-    // Calcula o índice de início e fim
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
 
-    // Fatiamento dos dados (O coração da paginação)
     const paginatedItems = data.slice(startIndex, endIndex);
 
     return {
       status: true,
-      data: paginatedItems,
+      data: paginatedItems.map(app.clone),
       pagination: {
         totalDocs,
         totalPages,

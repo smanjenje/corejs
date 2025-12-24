@@ -10,7 +10,6 @@ const DatePlugin = require("./core/plugins/utils/DatePlugin");
 const CachePlugin = require("./core/plugins/utils/CachePlugin");
 const FSPlugin = require("./core/plugins/utils/FSPlugin");
 
-
 // Plugins de preparação e schema
 const SchemaPlugin = require("./core/plugins/prepare/SchemaPlugin");
 const PrepareDocPlugin = require("./core/plugins/prepare/PrepareDocPlugin");
@@ -170,9 +169,8 @@ const logResults = (results) => {
         args: { token },
       },
     ];
-    // const results = await app.runFuncs(commands);
-    // logResults(results);
-    console.log(app.pluginsNames);
+    const results = await app.runFuncs(commands);
+    logResults(results);
 
     // console.dir(app._hookMap, { depth: null, colors: true });
   } catch (err) {

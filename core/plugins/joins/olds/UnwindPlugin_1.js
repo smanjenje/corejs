@@ -9,6 +9,30 @@ module.exports = ({ app } = {}) => {
     app.pluginsNames.UnwindPlugin = true;
   }
 
+  // --------------------------------------------------
+  // Utils para campos aninhados
+  // --------------------------------------------------
+  const getNested = (obj, path) => {
+    if (!obj || typeof obj !== "object") return undefined;
+    return path
+      .split(".")
+      .reduce(
+        (o, key) => (o && o[key] !== undefined ? o[key] : undefined),
+        obj
+      );
+  };
+
+  const setNested = (obj, path, value) => {
+    if (!obj || typeof obj !== "object") return;
+    const keys = path.split(".");
+    const lastKey = keys.pop();
+    const parent = keys.reduce((o, key) => {
+      if (!o[key] || typeof o[key] !== "object") o[key] = {};
+      return o[key];
+    }, obj);
+    parent[lastKey] = value;
+  };
+
   /**
    * Desestrutura um campo array em múltiplos documentos (estilo $unwind do MongoDB).
    *
@@ -27,38 +51,39 @@ module.exports = ({ app } = {}) => {
       throw new Error("unwind: 'path' é obrigatório");
     }
 
-    if (!Array.isArray(docs)) return [];
+    if (!Array.isArray(docs)) {
+      return [];
+    }
 
     const result = [];
 
     for (const doc of docs) {
-      const docClone = app.clone(doc); // garante imutabilidade
-      const arrayValue = app.getNestedField(docClone, path);
+      const arrayValue = getNested(doc, path);
 
       if (arrayValue == null) {
         if (preserveNullAndEmptyArrays) {
-          result.push(docClone);
+          result.push({ ...doc });
         }
         continue;
       }
 
       if (!Array.isArray(arrayValue)) {
-        // Se não é array, mantém o documento como está
-        result.push(docClone);
+        // Se não é array, mantém o documento como está (comportamento do MongoDB)
+        result.push({ ...doc });
         continue;
       }
 
       if (arrayValue.length === 0) {
         if (preserveNullAndEmptyArrays) {
-          result.push(docClone);
+          result.push({ ...doc });
         }
         continue;
       }
 
       // Cria um novo documento para cada elemento do array
       for (const item of arrayValue) {
-        const newDoc = app.clone(docClone);
-        app.setNestedValue(newDoc, path, item); // substitui o array pelo item
+        const newDoc = { ...doc };
+        setNested(newDoc, path, item); // substitui o array pelo item
         result.push(newDoc);
       }
     }
@@ -76,6 +101,8 @@ module.exports = ({ app } = {}) => {
     }
     return current;
   };
+
+  // Registra no app
 
   return { unwind, unwindMany };
 };

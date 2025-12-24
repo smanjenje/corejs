@@ -268,7 +268,29 @@ module.exports = ({ app } = {}) => {
         if (typeof app.findMany !== "function") {
           throw new Error("Função app.findMany não disponível");
         }
-        const matches = await app.findMany({ user, dbname, collname, queries });
+        let matches = await app.findMany({ user, dbname, collname, queries });
+
+        return matches && matches.length ? matches[0] : null;
+      } catch (err) {
+        return { status: false, error: err.message || String(err) };
+      }
+    },
+    /**
+     * GET DOC using findMany (returns first match or null)
+     */
+    getDocs: async ({ user, dbname, collname, queries } = {}) => {
+      try {
+        ensureParams({ user, dbname, collname, queries }, [
+          "user",
+          "dbname",
+          "collname",
+          "queries",
+        ]);
+        if (typeof app.findMany !== "function") {
+          throw new Error("Função app.findMany não disponível");
+        }
+        let matches = await app.findMany({ user, dbname, collname, queries });
+
         return matches && matches.length ? matches[0] : null;
       } catch (err) {
         return { status: false, error: err.message || String(err) };
